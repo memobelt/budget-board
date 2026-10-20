@@ -6,6 +6,7 @@ import {
   IBudget,
 } from "~/models/budget";
 import {
+  getRangeRolloverBudgetIds,
   isEverythingElseBudget,
   isEverythingElseTransaction,
 } from "~/helpers/budgets";
@@ -606,13 +607,28 @@ function resolveBudgets(
 
   const spent = Math.abs(txs.reduce((n, t) => n + t.amount, 0));
 
+  // Like the budget cards, what's left and how much is used count rollover:
+  // only the balance carried into the earliest month, since later months'
+  // rollover already includes it.
+  const rangeRolloverBudgetIds = getRangeRolloverBudgetIds(budgets);
+  const available = budgets.reduce(
+    (n, b) => n + b.limit + (rangeRolloverBudgetIds.has(b.id) ? b.rollover : 0),
+    0,
+  );
+
   switch (metric) {
     case "spent":
       return spent;
     case "remaining":
-      return Math.max(0, total - spent);
+      return Math.max(0, available - spent);
     case "percent_used":
-      return total > 0 ? (spent / total) * 100 : 0;
+      if (available > 0) {
+        return (spent / available) * 100;
+      }
+      // Nothing available (e.g. a deficit carried in): there's no meaningful
+      // percentage, so it reads as fully used once anything is spent or the
+      // balance is already negative.
+      return spent > 0 || available < 0 ? 100 : 0;
     default:
       return 0;
   }

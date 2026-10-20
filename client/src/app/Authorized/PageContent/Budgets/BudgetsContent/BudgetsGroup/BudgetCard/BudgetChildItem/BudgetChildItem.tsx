@@ -1,12 +1,8 @@
 import classes from "./BudgetChildItem.module.css";
 
 import { Group, Stack } from "@mantine/core";
-import {
-  ActionIcon,
-  AmountText,
-  BodyText,
-  Progress,
-} from "@teelur/budget-board-ui";
+import { ActionIcon, AmountText, BodyText } from "@teelur/budget-board-ui";
+import BudgetProgress from "../BudgetProgress/BudgetProgress";
 import { PencilIcon, TrashIcon } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import CategoryIconPicker from "~/components/CategoryIconPicker/CategoryIconPicker";
@@ -189,7 +185,7 @@ const BudgetChildItem = (props: BudgetChildItemProps): React.ReactNode => {
             />
           </Group>
         </Group>
-        <Progress
+        <BudgetProgress
           amount={props.amount}
           limit={availableLimit}
           label
