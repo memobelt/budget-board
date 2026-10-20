@@ -610,16 +610,29 @@ public class BudgetService(
 
         var spendMap = new Dictionary<(string, int, int), decimal>();
 
-        var budgetedParentsByMonth = includeEverythingElse
-            ? BuildBudgetedParentsByMonth(userData, allCategories)
-            : [];
+        var coverageByMonth = BuildBudgetCoverageByMonth(userData, allCategories);
 
         foreach (var transaction in transactions)
         {
             var category = transaction.Category ?? string.Empty;
-            AddSpend(spendMap, category, transaction.Date, transaction.Amount);
-
             var subcategory = transaction.Subcategory;
+            var coverage = coverageByMonth.GetValueOrDefault(
+                (transaction.Date.Year, transaction.Date.Month)
+            );
+
+            // Only budgeted sources count toward a category: once one of its subcategories has a
+            // budget, its unbudgeted subcategories are left out (expenses go to Everything Else).
+            var isUnbudgetedSubcategory = IsUnbudgetedSubcategoryOfBudgetedCategory(
+                category,
+                subcategory,
+                coverage,
+                allCategories
+            );
+            if (!isUnbudgetedSubcategory)
+            {
+                AddSpend(spendMap, category, transaction.Date, transaction.Amount);
+            }
+
             if (
                 !string.IsNullOrEmpty(subcategory)
                 && !subcategory.Equals(category, StringComparison.InvariantCultureIgnoreCase)
@@ -632,9 +645,8 @@ public class BudgetService(
                 includeEverythingElse
                 && IsEverythingElseSpend(
                     category,
-                    budgetedParentsByMonth.GetValueOrDefault(
-                        (transaction.Date.Year, transaction.Date.Month)
-                    ),
+                    isUnbudgetedSubcategory,
+                    coverage,
                     allCategories
                 )
             )
@@ -652,10 +664,23 @@ public class BudgetService(
     }
 
     /// <summary>
-    /// For each month, the top-level categories that have a budget, either their own or one of
-    /// their subcategories'. Their spending belongs to those budgets, not to Everything Else.
+    /// What a month's budgets cover.
     /// </summary>
-    private static Dictionary<(int, int), HashSet<string>> BuildBudgetedParentsByMonth(
+    /// <param name="BudgetedCategories">Every category with its own budget.</param>
+    /// <param name="BudgetedParents">
+    /// Top-level categories with a budget of their own or on a subcategory.
+    /// </param>
+    /// <param name="ParentsWithBudgetedSubcategories">
+    /// Top-level categories with at least one budgeted subcategory. Only those subcategories count
+    /// toward them.
+    /// </param>
+    private sealed record BudgetCoverage(
+        HashSet<string> BudgetedCategories,
+        HashSet<string> BudgetedParents,
+        HashSet<string> ParentsWithBudgetedSubcategories
+    );
+
+    private static Dictionary<(int, int), BudgetCoverage> BuildBudgetCoverageByMonth(
         ApplicationUser userData,
         IEnumerable<ITransactionCategoryResponse> allCategories
     ) =>
@@ -664,7 +689,9 @@ public class BudgetService(
             .GroupBy(b => (b.Month.Year, b.Month.Month))
             .ToDictionary(
                 g => g.Key,
-                g =>
+                g => new BudgetCoverage(
+                    g.Select(b => b.Category)
+                        .ToHashSet(StringComparer.InvariantCultureIgnoreCase),
                     g.Select(b =>
                             TransactionCategoriesHelpers.GetParentCategory(
                                 b.Category,
@@ -672,17 +699,61 @@ public class BudgetService(
                             )
                         )
                         .Where(parent => !string.IsNullOrEmpty(parent))
+                        .ToHashSet(StringComparer.InvariantCultureIgnoreCase),
+                    g.Where(b =>
+                            !TransactionCategoriesHelpers.GetIsParentCategory(
+                                b.Category,
+                                allCategories
+                            )
+                        )
+                        .Select(b =>
+                            TransactionCategoriesHelpers.GetParentCategory(
+                                b.Category,
+                                allCategories
+                            )
+                        )
+                        .Where(parent => !string.IsNullOrEmpty(parent))
                         .ToHashSet(StringComparer.InvariantCultureIgnoreCase)
+                )
             );
 
     /// <summary>
-    /// Everything Else collects the spending the budgets page lists as unbudgeted expenses:
-    /// uncategorized transactions, and expense categories with no budget for the month.
-    /// Income is left out, since Everything Else is an expense budget, and so are transfers.
+    /// Whether a transaction is in an unbudgeted subcategory of a category that has budgeted
+    /// subcategories, e.g. Furnishings under Home when only Mortgage &amp; Rent is budgeted.
+    /// Such spending doesn't count toward the category's budget.
+    /// </summary>
+    private static bool IsUnbudgetedSubcategoryOfBudgetedCategory(
+        string category,
+        string? subcategory,
+        BudgetCoverage? coverage,
+        IEnumerable<ITransactionCategoryResponse> allCategories
+    )
+    {
+        if (
+            coverage == null
+            || string.IsNullOrEmpty(subcategory)
+            || subcategory.Equals(category, StringComparison.InvariantCultureIgnoreCase)
+            || coverage.BudgetedCategories.Contains(subcategory)
+        )
+        {
+            return false;
+        }
+
+        var parent = TransactionCategoriesHelpers.GetParentCategory(category, allCategories);
+        return !string.IsNullOrEmpty(parent)
+            && coverage.ParentsWithBudgetedSubcategories.Contains(parent);
+    }
+
+    /// <summary>
+    /// Everything Else collects the spending the budgets page doesn't give to a budget:
+    /// uncategorized transactions, expense categories with no budget for the month, and the
+    /// unbudgeted subcategories of categories with budgeted ones. Income is left out, since
+    /// Everything Else is an expense budget, and so are transfers.
     /// </summary>
     private static bool IsEverythingElseSpend(
         string category,
-        HashSet<string>? budgetedParents,
+        bool isUnbudgetedSubcategory,
+        BudgetCoverage? coverage,
         IEnumerable<ITransactionCategoryResponse> allCategories
     )
     {
@@ -715,7 +786,9 @@ public class BudgetService(
             return false;
         }
 
-        return budgetedParents == null || !budgetedParents.Contains(parent);
+        return coverage == null
+            || !coverage.BudgetedParents.Contains(parent)
+            || isUnbudgetedSubcategory;
     }
 
     private static void AddSpend(

@@ -39,6 +39,14 @@ const BudgetCard = (props: BudgetParentCardProps): React.ReactNode => {
     (budget) => budget.rolloverStartMonth !== null,
   );
 
+  // Once a subcategory has a budget, an expense category's unbudgeted
+  // subcategories belong to Everything Else, so they're listed there instead.
+  const unbudgetedChildrenInEverythingElse =
+    !isIncome &&
+    props.categoryNode.subCategories.some((subCategory) =>
+      props.categoryToBudgetsMap.has(subCategory.value.toLocaleLowerCase()),
+    );
+
   const buildChildren = (): [string, React.ReactNode][] => {
     const budgetedChildCards: [string, React.ReactNode][] = [];
     const unbudgetedChildCards: [string, React.ReactNode][] = [];
@@ -97,6 +105,7 @@ const BudgetCard = (props: BudgetParentCardProps): React.ReactNode => {
           />,
         ]);
       } else if (
+        !unbudgetedChildrenInEverythingElse &&
         props.categoryToTransactionsTotalMap.has(
           subCategory.value.toLocaleLowerCase(),
         )

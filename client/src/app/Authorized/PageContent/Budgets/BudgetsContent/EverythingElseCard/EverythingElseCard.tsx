@@ -14,9 +14,12 @@ import { PencilIcon } from "lucide-react";
 import React from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { EVERYTHING_ELSE_CATEGORY, IBudget } from "~/models/budget";
-import { ICategoryNode } from "~/models/category";
 import { uncategorizedTransactionCategory } from "~/models/transaction";
-import { getRangeRolloverBudgetIds } from "~/helpers/budgets";
+import {
+  getEverythingElseGroupTotal,
+  getRangeRolloverBudgetIds,
+  IEverythingElseGroup,
+} from "~/helpers/budgets";
 import { getCategoryIcon } from "~/helpers/category";
 import { SignDisplay } from "~/helpers/currency";
 import { roundAwayFromZero } from "~/helpers/utils";
@@ -41,8 +44,11 @@ interface EverythingElseCardProps {
   amount: number;
   /** The amount plus recurring transactions still expected this period. */
   projectedAmount: number;
-  /** The expense categories without a budget, each listed as a row in the card. */
-  categoryNodes: ICategoryNode[];
+  /**
+   * The expense categories whose spending falls into Everything Else, each listed as a row:
+   * unbudgeted categories in whole, and budgeted ones by their unbudgeted subcategories.
+   */
+  groups: IEverythingElseGroup[];
   categoryToTransactionsTotalMap: Map<string, number>;
   selectedDate: Date | null;
   openDetails: (category: string, month: Date | null) => void;
@@ -128,31 +134,30 @@ const EverythingElseCard = (
 
   // Uncategorized first, then the rest by most spent.
   const rows = [
-    { value: "", label: t(uncategorizedTransactionCategory) },
-    ...props.categoryNodes
-      .map((node) => ({
-        value: node.value,
+    {
+      value: "",
+      label: t(uncategorizedTransactionCategory) as string | undefined,
+      amount: props.categoryToTransactionsTotalMap.get("") ?? 0,
+      isPartial: false,
+    },
+    ...props.groups
+      .map((group) => ({
+        value: group.value,
         label: undefined as string | undefined,
+        isPartial: group.isPartial,
+        amount: getEverythingElseGroupTotal(
+          group,
+          props.categoryToTransactionsTotalMap,
+        ),
       }))
-      .sort(
-        (a, b) =>
-          (props.categoryToTransactionsTotalMap.get(a.value.toLowerCase()) ??
-            0) -
-          (props.categoryToTransactionsTotalMap.get(b.value.toLowerCase()) ??
-            0),
-      ),
+      .sort((a, b) => a.amount - b.amount),
   ]
-    .map((row) => ({
-      ...row,
-      amount:
-        props.categoryToTransactionsTotalMap.get(row.value.toLowerCase()) ?? 0,
-    }))
     .filter((row) => roundAwayFromZero(row.amount) !== 0)
     .map((row) => ({
       ...row,
       // Subcategories with spending, most spent first.
       children: (
-        props.categoryNodes.find((node) => node.value === row.value)
+        props.groups.find((group) => group.value === row.value)
           ?.subCategories ?? []
       )
         .map((sub) => ({
@@ -303,7 +308,9 @@ const EverythingElseCard = (
                     : ""
                 }
                 selectedDate={props.selectedDate}
-                hideAddBudget={row.value === ""}
+                // Uncategorized can't have a budget, and a partial group
+                // already has one.
+                hideAddBudget={row.value === "" || row.isPartial}
                 isExpanded={isExpanded}
                 onToggleExpanded={
                   row.children.length > 0

@@ -99,14 +99,12 @@ const BudgetParentItem = (props: BudgetParentItemProps): React.ReactNode => {
   const budgets = props.categoryToBudgetsMap.get(categoryKey) ?? [];
   const budget = props.selectedDate && budgets.length === 1 ? budgets[0] : null;
 
-  // Income counts only from budgeted sources, so unbudgeted subcategories are
-  // left out once any subcategory has a budget. They're still listed below.
+  // Only budgeted sources count: once any subcategory has a budget, the
+  // unbudgeted ones are left out. Unbudgeted expenses go to Everything Else.
   const isBudgeted = (category: string): boolean =>
     props.categoryToBudgetsMap.has(category.toLowerCase());
   const getExcludedTotal = (totals: Map<string, number>): number =>
-    props.isIncome
-      ? getUnbudgetedSubcategoriesTotal(props.categoryNode, isBudgeted, totals)
-      : 0;
+    getUnbudgetedSubcategoriesTotal(props.categoryNode, isBudgeted, totals);
 
   const amount =
     (props.categoryToTransactionsTotalMap.get(categoryKey) ?? 0) -

@@ -1182,8 +1182,8 @@ public class BudgetServiceTests
         AddParentBudget(helper, february, 1000, rolloverStartMonth: january);
         AddRolloverBudget(helper, january, 400);
         AddRolloverBudget(helper, february, 400);
-        // Spending is recorded under the parent category with a subcategory, which counts towards
-        // the parent whether or not that subcategory has its own budget.
+        // Spending is recorded under the parent category with a subcategory. Since Groceries has a
+        // budget, only budgeted subcategories count toward the parent, so Restaurants doesn't.
         AddSpend(
             helper,
             accountId,
@@ -1210,8 +1210,9 @@ public class BudgetServiceTests
         );
 
         // Assert
+        // 1000 - 250
         var parent = readBudgets.Single(b => b.Category == RolloverParentCategory);
-        parent.Rollover.Should().Be(450);
+        parent.Rollover.Should().Be(750);
         parent.RolloverStartMonth.Should().Be(january);
         readBudgets.Single(b => b.Category == RolloverCategory).Rollover.Should().Be(0);
     }
@@ -1525,7 +1526,7 @@ public class BudgetServiceTests
     }
 
     [Fact]
-    public async Task ReadBudgetsAsync_WhenSubcategoryBudgeted_ShouldExcludeParentFromEverythingElse()
+    public async Task ReadBudgetsAsync_WhenSubcategoryBudgeted_ShouldMoveOnlyUnbudgetedSiblingsToEverythingElse()
     {
         // Arrange
         var helper = new TestHelper();
@@ -1539,7 +1540,16 @@ public class BudgetServiceTests
         AddBudget(helper, "Groceries", january, 200);
         AddBudget(helper, BudgetConstants.EverythingElseCategory, february, 0, rolloverStartMonth: january);
 
-        // Food & Dining has a budgeted subcategory, so all its spending stays with that card.
+        // Groceries is budgeted, so its spending stays with that budget...
+        AddSpend(
+            helper,
+            accountId,
+            january.AddDays(1),
+            150,
+            category: "Food & Dining",
+            subcategory: "Groceries"
+        );
+        // ...while its unbudgeted sibling Restaurants falls into Everything Else.
         AddSpend(
             helper,
             accountId,
@@ -1555,8 +1565,48 @@ public class BudgetServiceTests
         var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
 
         // Assert
-        // (1000 - 200) - 40
-        GetEverythingElse(readBudgets).Rollover.Should().Be(760);
+        // (1000 - 200) - (70 + 40)
+        GetEverythingElse(readBudgets).Rollover.Should().Be(690);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenOnlyParentBudgeted_ShouldKeepAllSubcategoriesOutOfEverythingElse()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var accountId = AddAccount(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+
+        AddBudget(helper, "Income", january, 1000);
+        // No subcategory budgets, so Food & Dining's budget covers all of its subcategories.
+        AddBudget(helper, "Food & Dining", january, 300);
+        AddBudget(
+            helper,
+            BudgetConstants.EverythingElseCategory,
+            february,
+            0,
+            rolloverStartMonth: january
+        );
+
+        AddSpend(
+            helper,
+            accountId,
+            january.AddDays(1),
+            70,
+            category: "Food & Dining",
+            subcategory: "Restaurants"
+        );
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+
+        // Assert
+        // 1000 - 300, with nothing spent in Everything Else.
+        GetEverythingElse(readBudgets).Rollover.Should().Be(700);
     }
 
     [Fact]
