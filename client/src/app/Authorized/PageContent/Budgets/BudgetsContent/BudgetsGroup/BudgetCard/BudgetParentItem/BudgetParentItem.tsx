@@ -24,6 +24,7 @@ import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsProvider";
 import { SignDisplay } from "~/helpers/currency";
 import { roundAwayFromZero } from "~/helpers/utils";
+import { getUnbudgetedSubcategoriesTotal } from "~/helpers/budgets";
 import BudgetLimitInput from "../BudgetLimitInput/BudgetLimitInput";
 import { useField } from "@mantine/form";
 import { IBudget } from "~/models/budget";
@@ -98,9 +99,22 @@ const BudgetParentItem = (props: BudgetParentItemProps): React.ReactNode => {
   const budgets = props.categoryToBudgetsMap.get(categoryKey) ?? [];
   const budget = props.selectedDate && budgets.length === 1 ? budgets[0] : null;
 
-  const amount = props.categoryToTransactionsTotalMap.get(categoryKey) ?? 0;
+  // Income counts only from budgeted sources, so unbudgeted subcategories are
+  // left out once any subcategory has a budget. They're still listed below.
+  const isBudgeted = (category: string): boolean =>
+    props.categoryToBudgetsMap.has(category.toLowerCase());
+  const getExcludedTotal = (totals: Map<string, number>): number =>
+    props.isIncome
+      ? getUnbudgetedSubcategoriesTotal(props.categoryNode, isBudgeted, totals)
+      : 0;
+
+  const amount =
+    (props.categoryToTransactionsTotalMap.get(categoryKey) ?? 0) -
+    getExcludedTotal(props.categoryToTransactionsTotalMap);
   const projectedAmount =
-    amount + (props.categoryToRecurringForecastTotalMap.get(categoryKey) ?? 0);
+    amount +
+    (props.categoryToRecurringForecastTotalMap.get(categoryKey) ?? 0) -
+    getExcludedTotal(props.categoryToRecurringForecastTotalMap);
 
   const rollover = props.categoryToRolloverMap.get(categoryKey) ?? 0;
   const rolloverStartMonth = budgets[0]?.rolloverStartMonth ?? null;

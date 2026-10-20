@@ -3,6 +3,21 @@ using BudgetBoard.Database.Models;
 
 namespace BudgetBoard.Service.Models;
 
+public static class BudgetConstants
+{
+    /// <summary>
+    /// Reserved category for the "Everything Else" budget. It is not a transaction category:
+    /// its spending is every expense in a top-level category that has no budget of its own for
+    /// the month, plus uncategorized transactions. Its limit is not stored: it is always the
+    /// month's budgeted income minus budgeted expenses.
+    /// </summary>
+    public const string EverythingElseCategory = "__everything_else__";
+
+    public static bool IsEverythingElse(string? category) =>
+        category != null
+        && category.Equals(EverythingElseCategory, StringComparison.InvariantCultureIgnoreCase);
+}
+
 public interface IBudgetCreateRequest
 {
     DateOnly Month { get; }
@@ -49,6 +64,7 @@ public interface IBudgetResponse
     decimal Limit { get; }
     DateOnly? RolloverStartMonth { get; }
     decimal Rollover { get; }
+    bool IsPlaceholder { get; }
     Guid UserID { get; }
 }
 
@@ -65,6 +81,12 @@ public class BudgetResponse : IBudgetResponse
     /// Negative when earlier months were overspent.
     /// </summary>
     public decimal Rollover { get; set; } = 0;
+
+    /// <summary>
+    /// True for a month's Everything Else that hasn't been saved yet. It has no ID to update, so
+    /// changing it creates it.
+    /// </summary>
+    public bool IsPlaceholder { get; set; } = false;
     public Guid UserID { get; set; } = Guid.NewGuid();
 
     public BudgetResponse(Budget budget, decimal rollover = 0)

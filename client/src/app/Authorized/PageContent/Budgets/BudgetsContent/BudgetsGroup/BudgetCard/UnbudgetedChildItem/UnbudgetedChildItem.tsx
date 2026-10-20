@@ -15,6 +15,10 @@ interface UnbudgetedChildItemProps {
   amount: number;
   isIncome: boolean;
   icon: string;
+  /** Shown instead of the category, e.g. for uncategorized spending. */
+  label?: string;
+  /** Hides the button that creates a budget for the category. */
+  hideAddBudget?: boolean;
 }
 
 const UnbudgetedChildItem = (
@@ -34,7 +38,7 @@ const UnbudgetedChildItem = (
     >
       <BodyText tone="primary" fw={500} className={classes.text}>
         {props.icon.length > 0 ? `${props.icon} ` : ""}
-        {props.category}
+        {props.label ?? props.category}
       </BodyText>
       <Group gap="0.5rem">
         <AmountText
@@ -48,7 +52,7 @@ const UnbudgetedChildItem = (
           signDisplay={SignDisplay.Auto}
           className={classes.text}
         />
-        {props.selectedDate && (
+        {props.selectedDate && !props.hideAddBudget && (
           <ActionIcon
             variant="filled"
             color="primary"

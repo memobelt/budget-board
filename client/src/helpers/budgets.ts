@@ -1,4 +1,8 @@
-import { CashFlowValue, IBudget } from "~/models/budget";
+import {
+  CashFlowValue,
+  EVERYTHING_ELSE_CATEGORY,
+  IBudget,
+} from "~/models/budget";
 import {
   CategoryNode,
   ICategory,
@@ -35,6 +39,41 @@ export const getCashFlowValue = (
     return CashFlowValue.Negative;
   }
   return CashFlowValue.Neutral;
+};
+
+/**
+ * Whether the budget is the reserved "Everything Else" budget rather than a category budget.
+ */
+export const isEverythingElseBudget = (budget: IBudget): boolean =>
+  areStringsEqual(budget.category, EVERYTHING_ELSE_CATEGORY);
+
+/**
+ * Totals the subcategories of a category that have no budget, when at least one of its
+ * subcategories does. Income counts only from budgeted sources, so this is taken off an income
+ * category's total: with Paycheck budgeted, Interest Income under the same category isn't counted.
+ * Returns 0 when no subcategory is budgeted, since the category's own budget then covers them all.
+ *
+ * @param categoryNode - The top-level category and its subcategories.
+ * @param isBudgeted - Whether a category has a budget.
+ * @param totals - Map from lowercase category to a total (transactions or forecast).
+ */
+export const getUnbudgetedSubcategoriesTotal = (
+  categoryNode: ICategoryNode,
+  isBudgeted: (category: string) => boolean,
+  totals: Map<string, number>,
+): number => {
+  const subCategories = categoryNode.subCategories;
+  if (!subCategories.some((subCategory) => isBudgeted(subCategory.value))) {
+    return 0;
+  }
+
+  return subCategories
+    .filter((subCategory) => !isBudgeted(subCategory.value))
+    .reduce(
+      (total, subCategory) =>
+        total + (totals.get(subCategory.value.toLocaleLowerCase()) ?? 0),
+      0,
+    );
 };
 
 /**
