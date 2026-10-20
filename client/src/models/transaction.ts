@@ -124,6 +124,8 @@ export interface IFilters {
   category: string;
   dateRange: [Date | null, Date | null];
   merchantName: string;
+  /** Text to look for in a transaction's notes. */
+  notes: string;
   amountRange: [number | null, number | null];
   tags: string[];
 }
@@ -133,6 +135,7 @@ export class Filters implements IFilters {
   category: string = "";
   dateRange: [Date | null, Date | null] = [null, null];
   merchantName: string = "";
+  notes: string = "";
   amountRange: [number | null, number | null] = [null, null];
   tags: string[] = [];
 
@@ -142,6 +145,7 @@ export class Filters implements IFilters {
       this.category = filter.category;
       this.dateRange = filter.dateRange;
       this.merchantName = filter.merchantName;
+      this.notes = filter.notes ?? "";
       this.amountRange = filter.amountRange;
       this.tags = filter.tags;
     }
@@ -155,6 +159,7 @@ export class Filters implements IFilters {
       this.dateRange[0]?.getTime() === other.dateRange[0]?.getTime() &&
       this.dateRange[1]?.getTime() === other.dateRange[1]?.getTime() &&
       this.merchantName === other.merchantName &&
+      this.notes === other.notes &&
       this.amountRange[0] === other.amountRange[0] &&
       this.amountRange[1] === other.amountRange[1] &&
       JSON.stringify(
