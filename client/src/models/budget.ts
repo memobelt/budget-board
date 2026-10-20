@@ -6,6 +6,9 @@
  */
 export const EVERYTHING_ELSE_CATEGORY = "__everything_else__";
 
+/** How Everything Else is written in metric widget formulas, e.g. category=Everything Else. */
+export const EVERYTHING_ELSE_DISPLAY_NAME = "Everything Else";
+
 export interface IBudgetCreateRequest {
   month: string;
   category: string;

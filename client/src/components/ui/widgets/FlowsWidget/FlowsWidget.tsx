@@ -5,6 +5,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import FlowsChart from "~/components/Charts/FlowsChart/FlowsChart";
 import { parseFlowsConfiguration } from "~/helpers/widgets";
+import { withoutTransfers } from "~/helpers/budgets";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { IWidgetSettingsResponse } from "~/models/widgetSettings";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
@@ -60,6 +61,13 @@ const FlowsWidget = ({
     })),
   });
 
+  // Transfers only move money between accounts, so they're left out of flows.
+  const transactions = React.useMemo(
+    () =>
+      withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
+    [transactionsQuery.data, allTransactionCategories],
+  );
+
   const isPending = transactionsQuery.isPending || categoriesPending;
 
   return (
@@ -79,7 +87,7 @@ const FlowsWidget = ({
             <Skeleton height="100%" radius="md" />
           ) : (
             <FlowsChart
-              transactions={transactionsQuery.data ?? []}
+              transactions={transactions}
               categories={allTransactionCategories}
               height={480}
             />

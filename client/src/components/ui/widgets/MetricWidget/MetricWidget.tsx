@@ -40,8 +40,11 @@ const MetricWidget = ({
   const { intlLocale, dayjs } = useLocale();
   const { isPrivacyModeEnabled } = usePrivacyMode();
   const { allAccountTypes, isPending: accountTypesPending } = useAccountTypes();
-  const { getCategoryType, isPending: transactionCategoriesPending } =
-    useTransactionCategories();
+  const {
+    getCategoryType,
+    allTransactionCategories,
+    isPending: transactionCategoriesPending,
+  } = useTransactionCategories();
   const widgetSettingsQuery = useWidgetSettingsQuery();
 
   // The widget configuration is stored as a JSON string in the database.
@@ -138,6 +141,7 @@ const MetricWidget = ({
       accounts: accountsQuery.data ?? [],
       accountTypes: allAccountTypes ?? [],
       getCategoryType,
+      transactionCategories: allTransactionCategories,
       preferredCurrency,
       decimalPlaces,
       intlLocale,
@@ -151,6 +155,7 @@ const MetricWidget = ({
       accountsQuery.data,
       allAccountTypes,
       getCategoryType,
+      allTransactionCategories,
       preferredCurrency,
       decimalPlaces,
       intlLocale,

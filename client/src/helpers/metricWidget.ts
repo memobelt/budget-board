@@ -1,6 +1,14 @@
 import dayjs from "~/shared/dayjs";
 import { ITransaction } from "~/models/transaction";
-import { IBudget } from "~/models/budget";
+import {
+  EVERYTHING_ELSE_CATEGORY,
+  EVERYTHING_ELSE_DISPLAY_NAME,
+  IBudget,
+} from "~/models/budget";
+import {
+  isEverythingElseBudget,
+  isEverythingElseTransaction,
+} from "~/helpers/budgets";
 import { IGoalResponse } from "~/models/goal";
 import { IAccountResponse } from "~/models/account";
 import { IAccountType } from "~/models/accountType";
@@ -10,7 +18,7 @@ import {
   MetricDataRequirements,
   MetricToken,
 } from "~/models/metricWidget";
-import { CategoryTypes } from "~/models/category";
+import { CategoryTypes, ITransactionCategory } from "~/models/category";
 import { convertNumberToCurrency, SignDisplay } from "~/helpers/currency";
 import { getGoalTargetAmount } from "~/helpers/goals";
 import { filterVisibleAccounts, getAccountsOfTypes } from "~/helpers/accounts";
@@ -440,6 +448,8 @@ export interface MetricDataContext {
   accounts: IAccountResponse[];
   accountTypes: IAccountType[];
   getCategoryType: (category: string) => string;
+  /** All transaction categories; needed to work out Everything Else's spending. */
+  transactionCategories?: ITransactionCategory[];
   preferredCurrency: string;
   decimalPlaces: number;
   intlLocale: string;
@@ -553,26 +563,45 @@ function resolveBudgets(
     return 0;
   }
 
-  const budgets = ctx.budgets
-    .filter((b) =>
-      isInResolvedPeriod(
-        getDateOnly(dayjs(b.month).format("YYYY-MM-DD")),
-        period,
-      ),
-    )
-    .filter((b) => areStringsEqual(b.category, category));
+  const budgetsInPeriod = ctx.budgets.filter((b) =>
+    isInResolvedPeriod(
+      getDateOnly(dayjs(b.month).format("YYYY-MM-DD")),
+      period,
+    ),
+  );
+
+  // "Everything Else" means the Everything Else budget, unless a real budget
+  // has that name.
+  const isEverythingElse =
+    areStringsEqual(category, EVERYTHING_ELSE_CATEGORY) ||
+    (areStringsEqual(category, EVERYTHING_ELSE_DISPLAY_NAME) &&
+      !budgetsInPeriod.some((b) => areStringsEqual(b.category, category)));
+
+  const budgets = budgetsInPeriod.filter((b) =>
+    isEverythingElse
+      ? isEverythingElseBudget(b)
+      : areStringsEqual(b.category, category),
+  );
 
   const total = budgets.reduce((n, b) => n + b.limit, 0);
   if (metric === "total") {
     return total;
   }
 
+  const getMonthKey = (date: string) => dayjs(date).format("YYYY-MM");
   const txs = getVisibleTransactions(ctx.transactions)
     .filter((t) => isInResolvedPeriod(getDateOnly(t.date), period))
-    .filter(
-      (t) =>
-        areStringsEqual(t.category ?? "", category) ||
-        areStringsEqual(t.subcategory ?? "", category),
+    .filter((t) =>
+      isEverythingElse
+        ? isEverythingElseTransaction(
+            t,
+            budgetsInPeriod.filter(
+              (b) => getMonthKey(b.month) === getMonthKey(t.date),
+            ),
+            ctx.transactionCategories ?? [],
+          )
+        : areStringsEqual(t.category ?? "", category) ||
+          areStringsEqual(t.subcategory ?? "", category),
     );
 
   const spent = Math.abs(txs.reduce((n, t) => n + t.amount, 0));
