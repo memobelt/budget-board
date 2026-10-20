@@ -5,3 +5,7 @@
     font-size: 0.9rem;
   }
 }
+
+.collapseIcon {
+  transform: rotate(-90deg);
+}
