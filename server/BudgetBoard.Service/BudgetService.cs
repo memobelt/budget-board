@@ -678,7 +678,7 @@ public class BudgetService(
     /// <summary>
     /// Everything Else collects the spending the budgets page lists as unbudgeted expenses:
     /// uncategorized transactions, and expense categories with no budget for the month.
-    /// Income is left out, since Everything Else is an expense budget.
+    /// Income is left out, since Everything Else is an expense budget, and so are transfers.
     /// </summary>
     private static bool IsEverythingElseSpend(
         string category,
@@ -708,6 +708,12 @@ public class BudgetService(
         var parent = string.IsNullOrEmpty(foundCategory.Parent)
             ? foundCategory.Value
             : foundCategory.Parent;
+
+        // Transfers only move money between accounts, so they're never spending.
+        if (IsTransferCategory(parent))
+        {
+            return false;
+        }
 
         return budgetedParents == null || !budgetedParents.Contains(parent);
     }
@@ -781,7 +787,7 @@ public class BudgetService(
 
     /// <summary>
     /// Everything Else's limit for each month with budgets: budgeted income minus budgeted
-    /// expenses, never below zero. Each top-level category is counted once, using its own budget
+    /// expenses, never below zero. Transfer budgets don't count as either. Each top-level category is counted once, using its own budget
     /// when it has one (it already covers its subcategories) and otherwise its subcategories'.
     /// </summary>
     private static Dictionary<(int, int), decimal> BuildEverythingElseLimits(
@@ -804,7 +810,10 @@ public class BudgetService(
                                 ),
                             StringComparer.InvariantCultureIgnoreCase
                         )
-                        .Where(parentGroup => !string.IsNullOrEmpty(parentGroup.Key))
+                        .Where(parentGroup =>
+                            !string.IsNullOrEmpty(parentGroup.Key)
+                            && !IsTransferCategory(parentGroup.Key)
+                        )
                         .Sum(parentGroup =>
                         {
                             var parentBudget = parentGroup.FirstOrDefault(b =>
@@ -822,6 +831,12 @@ public class BudgetService(
                     return Math.Max(0, net);
                 }
             );
+
+    private static bool IsTransferCategory(string category) =>
+        category.Equals(
+            TransactionCategoriesConstants.TransferCategory,
+            StringComparison.InvariantCultureIgnoreCase
+        );
 
     /// <summary>
     /// A stable ID for a month's unsaved Everything Else, so each month's placeholder is distinct.

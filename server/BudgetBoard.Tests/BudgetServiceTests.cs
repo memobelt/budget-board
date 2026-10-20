@@ -1616,6 +1616,51 @@ public class BudgetServiceTests
     }
 
     [Fact]
+    public async Task ReadBudgetsAsync_ShouldLeaveTransfersOutOfEverythingElse()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var accountId = AddAccount(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+
+        AddBudget(helper, "Income", january, 1000);
+        // A Transfer budget isn't an expense, so it doesn't lower the limit.
+        AddBudget(helper, "Transfer", january, 400);
+        AddBudget(helper, "Income", february, 1000);
+        AddBudget(
+            helper,
+            BudgetConstants.EverythingElseCategory,
+            february,
+            0,
+            rolloverStartMonth: january
+        );
+
+        AddSpend(helper, accountId, january.AddDays(1), 300, category: "Transfer");
+        AddSpend(
+            helper,
+            accountId,
+            january.AddDays(2),
+            200,
+            category: "Transfer",
+            subcategory: "Credit Card Payment"
+        );
+        AddSpend(helper, accountId, january.AddDays(3), 50, category: "Entertainment");
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+
+        // Assert
+        // January's limit is 1000 with only Entertainment's 50 spent.
+        var everythingElse = GetEverythingElse(readBudgets);
+        everythingElse.Rollover.Should().Be(950);
+        everythingElse.Limit.Should().Be(1000);
+    }
+
+    [Fact]
     public async Task UpdateBudgetAsync_WhenEverythingElse_ShouldUpdateLimitAndRolloverWithoutParent()
     {
         // Arrange

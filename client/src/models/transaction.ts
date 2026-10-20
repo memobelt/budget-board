@@ -170,4 +170,6 @@ export enum TransactionCardType {
 }
 
 export const hiddenTransactionCategory = "Hide from Budgets";
+/** Built-in category for moving money between accounts. Must match the server's. */
+export const transferTransactionCategory = "Transfer";
 export const uncategorizedTransactionCategory = "uncategorized";

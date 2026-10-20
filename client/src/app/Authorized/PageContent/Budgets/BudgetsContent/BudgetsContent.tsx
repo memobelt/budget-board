@@ -8,7 +8,8 @@ import BudgetSummaryCard from "./BudgetSummaryCard/BudgetSummaryCard";
 import BudgetsGroup from "./BudgetsGroup/BudgetsGroup";
 import UnbudgetedGroup from "./UnbudgetedGroup/UnbudgetedGroup";
 import EverythingElseCard from "./EverythingElseCard/EverythingElseCard";
-import { isEverythingElseBudget } from "~/helpers/budgets";
+import { isEverythingElseBudget, isTransfer } from "~/helpers/budgets";
+import { IRecurringForecastOccurrence } from "~/models/recurringRule";
 import { areStringsEqual, roundAwayFromZero } from "~/helpers/utils";
 import FixParentBudgetButton from "./FixParentBudgetButton/FixParentBudgetButton";
 import BudgetDetails from "./BudgetDetails/BudgetDetails";
@@ -52,10 +53,17 @@ const BudgetsContent = (props: BudgetsContentProps) => {
     enabled: props.selectedDates.length > 0,
   });
 
+  // Transfers are left out of the budgets page; the transactions passed in are
+  // already filtered, so only the recurring forecasts need it here.
+  const isNotTransfer = (occurrence: IRecurringForecastOccurrence) =>
+    !isTransfer(occurrence, allTransactionCategories);
+
   const categoryToTransactionsTotalMap: Map<string, number> =
     buildCategoryToTransactionsTotalMap(props.transactions);
   const categoryToRecurringForecastTotalMap =
-    buildCategoryToRecurringForecastTotalMap(recurringForecastQuery.data ?? []);
+    buildCategoryToRecurringForecastTotalMap(
+      (recurringForecastQuery.data ?? []).filter(isNotTransfer),
+    );
 
   const categoryTree = buildCategoriesTree(allTransactionCategories);
 
@@ -65,7 +73,9 @@ const BudgetsContent = (props: BudgetsContentProps) => {
   const summaryCategoryToTransactionsTotalMap =
     buildCategoryToTransactionsTotalMap(summaryTransactions);
   const summaryForecastOccurrences = recurringForecastQueries.data.filter(
-    (occurrence) => dayjs(occurrence.date).isSameOrAfter(dayjs(), "day"),
+    (occurrence) =>
+      isNotTransfer(occurrence) &&
+      dayjs(occurrence.date).isSameOrAfter(dayjs(), "day"),
   );
   const summaryCategoryToRecurringForecastTotalMap =
     buildCategoryToRecurringForecastTotalMap(summaryForecastOccurrences);

@@ -22,6 +22,7 @@ import {
   sortTransactions,
 } from "~/helpers/transactions";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
+import { isTransfer } from "~/helpers/budgets";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 import { getMonthsInDateRange } from "~/helpers/datetime";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
@@ -64,9 +65,17 @@ const TransactionsHeader = (
     toggle();
   };
 
+  // Transfers only move money between accounts, so they're left out of each
+  // month's total. They're still listed with the other transactions.
   const timeToMonthlyTotalsMap = React.useMemo(
-    () => buildTimeToMonthlyTotalsMap(props.selectedMonths, props.transactions),
-    [props.selectedMonths, props.transactions],
+    () =>
+      buildTimeToMonthlyTotalsMap(
+        props.selectedMonths,
+        props.transactions.filter(
+          (transaction) => !isTransfer(transaction, allTransactionCategories),
+        ),
+      ),
+    [props.selectedMonths, props.transactions, allTransactionCategories],
   );
 
   const getMonthStatus = React.useCallback(

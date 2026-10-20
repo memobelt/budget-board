@@ -10,6 +10,7 @@ import {
   ITransactionCategory,
 } from "~/models/category";
 import { areStringsEqual } from "./utils";
+import { transferTransactionCategory } from "~/models/transaction";
 import {
   getFormattedCategoryValue,
   getIsParentCategory,
@@ -40,6 +41,31 @@ export const getCashFlowValue = (
   }
   return CashFlowValue.Neutral;
 };
+
+/**
+ * Whether a category is Transfer or one of its subcategories. Transfers only move money between
+ * accounts, so the budgets page leaves them out of income, expenses and Everything Else.
+ */
+export const isTransferCategory = (
+  category: string | null | undefined,
+  categories: ICategory[],
+): boolean =>
+  !!category &&
+  (areStringsEqual(category, transferTransactionCategory) ||
+    areStringsEqual(
+      getParentCategory(category, categories),
+      transferTransactionCategory,
+    ));
+
+/**
+ * Whether a transaction or recurring forecast is filed under the Transfer group.
+ */
+export const isTransfer = (
+  item: { category: string | null; subcategory: string | null },
+  categories: ICategory[],
+): boolean =>
+  isTransferCategory(item.category, categories) ||
+  isTransferCategory(item.subcategory, categories);
 
 /**
  * Whether the budget is the reserved "Everything Else" budget rather than a category budget.
