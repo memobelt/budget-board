@@ -5,7 +5,10 @@ import { filterVisibleAccounts } from "~/helpers/accounts";
 import AccountMappingItem from "./AccountMappingItem/AccountMappingItem";
 import { ITransactionImportTableData } from "~/models/transaction";
 import { MoveLeftIcon } from "lucide-react";
-import { getMappedAccountId } from "~/helpers/transactionImport";
+import {
+  findClosestAccountId,
+  getMappedAccountId,
+} from "~/helpers/transactionImport";
 import { useTranslation } from "react-i18next";
 import { useAccountsQuery } from "~/hooks/queries/useAccountsQuery";
 
@@ -40,6 +43,44 @@ const AccountMapping = (props: AccountMappingProps) => {
       value: account.id,
       label: account.name,
     }));
+
+  // Pre-fill each unmapped account with the closest saved account, once per
+  // name, so clearing a suggestion doesn't bring it back.
+  const prefilledAccountNamesRef = React.useRef(new Set<string>());
+  React.useEffect(() => {
+    if (filteredAccounts.length === 0) {
+      return;
+    }
+
+    const suggestions = new Map<string, string>();
+    props.accountNameToAccountIdMap.forEach((accountId, accountName) => {
+      if (accountId || prefilledAccountNamesRef.current.has(accountName)) {
+        return;
+      }
+      prefilledAccountNamesRef.current.add(accountName);
+
+      const closestAccountId = findClosestAccountId(
+        accountName,
+        filteredAccounts,
+      );
+      if (closestAccountId) {
+        suggestions.set(accountName, closestAccountId);
+      }
+    });
+
+    if (suggestions.size > 0) {
+      props.setAccountNameToAccountIdMap((prev) => {
+        const newMap = new Map(prev);
+        suggestions.forEach((accountId, accountName) => {
+          // Only fill what's still unmapped.
+          if (!newMap.get(accountName)) {
+            newMap.set(accountName, accountId);
+          }
+        });
+        return newMap;
+      });
+    }
+  }, [accountsQuery.data, props.accountNameToAccountIdMap]);
 
   const filteredImportData = props.importedTransactions
     .filter(

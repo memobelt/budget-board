@@ -33,6 +33,100 @@ export const getMappedAccountId = (
   return "";
 };
 
+const normalizeForMatching = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const getBigrams = (text: string): string[] => {
+  const compact = text.replace(/ /g, "");
+  const bigrams: string[] = [];
+  for (let i = 0; i < compact.length - 1; i++) {
+    bigrams.push(compact.slice(i, i + 2));
+  }
+  return bigrams;
+};
+
+/**
+ * Scores how alike an imported account name and a saved account name are, from
+ * 0 (nothing in common) to 1 (the same once case and punctuation are ignored).
+ */
+export const getAccountNameSimilarity = (
+  importedName: string,
+  savedName: string,
+): number => {
+  const a = normalizeForMatching(importedName);
+  const b = normalizeForMatching(savedName);
+  if (!a || !b) {
+    return 0;
+  }
+  if (a === b) {
+    return 1;
+  }
+
+  // Account numbers (e.g. the last four digits) are the strongest hint.
+  const numbersInA = a.match(/\d{3,}/g) ?? [];
+  const numbersInB = new Set(b.match(/\d{3,}/g) ?? []);
+  if (numbersInA.some((n) => numbersInB.has(n))) {
+    return 0.9;
+  }
+
+  // One name inside the other, e.g. "Chase Checking" and "Checking".
+  if (Math.min(a.length, b.length) >= 3 && (a.includes(b) || b.includes(a))) {
+    return 0.8;
+  }
+
+  // Otherwise, how many words and letter pairs they share.
+  const wordsA = new Set(a.split(" "));
+  const wordsB = new Set(b.split(" "));
+  const sharedWords = [...wordsA].filter((w) => wordsB.has(w)).length;
+  const wordScore = sharedWords / new Set([...wordsA, ...wordsB]).size;
+
+  const bigramsA = getBigrams(a);
+  const bigramsB = getBigrams(b);
+  const remaining = [...bigramsB];
+  let sharedBigrams = 0;
+  bigramsA.forEach((bigram) => {
+    const index = remaining.indexOf(bigram);
+    if (index !== -1) {
+      sharedBigrams++;
+      remaining.splice(index, 1);
+    }
+  });
+  const bigramScore =
+    bigramsA.length + bigramsB.length === 0
+      ? 0
+      : (2 * sharedBigrams) / (bigramsA.length + bigramsB.length);
+
+  return Math.max(wordScore, bigramScore);
+};
+
+/** Below this, a saved account is too different to suggest. */
+const minimumAccountSimilarity = 0.4;
+
+/**
+ * Finds the saved account whose name is closest to an account name from an
+ * imported file, or null when none is close enough to be a sensible guess.
+ */
+export const findClosestAccountId = (
+  importedName: string,
+  accounts: { value: string; label: string }[],
+): string | null => {
+  let bestId: string | null = null;
+  let bestScore = minimumAccountSimilarity;
+
+  for (const account of accounts) {
+    const score = getAccountNameSimilarity(importedName, account.label);
+    if (score > bestScore) {
+      bestId = account.value;
+      bestScore = score;
+    }
+  }
+
+  return bestId;
+};
+
 interface DuplicateFilterResult {
   filteredTransactions: ITransactionImportTableData[];
   duplicateTransactions: Map<ITransactionImportTableData, ITransaction>;

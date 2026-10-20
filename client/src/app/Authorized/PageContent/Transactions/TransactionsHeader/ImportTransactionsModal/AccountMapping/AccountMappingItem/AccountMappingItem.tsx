@@ -23,6 +23,15 @@ const AccountMappingItem = (
 
   const { t } = useTranslation();
 
+  // Show mappings set from outside, such as the closest-account suggestion.
+  React.useEffect(() => {
+    const accountId =
+      props.accounts.find((a) => a.value === props.accountId)?.value ?? null;
+    if (accountId !== null && accountId !== accountMappingField.getValue()) {
+      accountMappingField.setValue(accountId);
+    }
+  }, [props.accountId, props.accounts]);
+
   React.useEffect(() => {
     props.onAccountChange(
       props.accountName,
