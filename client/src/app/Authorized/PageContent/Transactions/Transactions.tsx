@@ -26,10 +26,14 @@ const Transactions = (): React.ReactNode => {
     dayjs().startOf("month").toDate(),
   ]);
   const transactionsQuery = useTransactionsQuery({
-    selectedDates: selectedMonths.map((date) => ({
-      month: dayjs(date).month() + 1,
-      year: dayjs(date).year(),
-    })),
+    // No months selected means all of them ("All" in the quick select).
+    selectedDates:
+      selectedMonths.length === 0
+        ? undefined
+        : selectedMonths.map((date) => ({
+            month: dayjs(date).month() + 1,
+            year: dayjs(date).year(),
+          })),
     includeHiddenCategory: true,
   });
   const [isViewUpdatePending, startViewUpdate] = React.useTransition();

@@ -123,8 +123,7 @@ export interface ITransactionTransferDisplayItem {
 }
 
 export type TransactionDisplayItem =
-  | ITransactionDisplayItem
-  | ITransactionTransferDisplayItem;
+  ITransactionDisplayItem | ITransactionTransferDisplayItem;
 
 export const getTransactionDisplayItems = (
   transactions: ITransaction[],
@@ -265,6 +264,23 @@ export const getDeletedTransactions = (
  * @param {ITransaction[]} transactions - Array of transaction objects.
  * @returns {Map<number, number>} A map where each key is the timestamp of the month, and each value is the total transaction amount for that month.
  */
+/**
+ * The start of every month that has at least one transaction, oldest first.
+ * Used to chart "All" when no months are selected.
+ */
+export const getMonthsWithTransactions = (
+  transactions: ITransaction[],
+): Date[] =>
+  Array.from(
+    new Set(
+      transactions.map((transaction) =>
+        dayjs(transaction.date).startOf("month").valueOf(),
+      ),
+    ),
+  )
+    .sort((a, b) => a - b)
+    .map((time) => new Date(time));
+
 export const buildTimeToMonthlyTotalsMap = (
   months: Date[],
   transactions: ITransaction[],
