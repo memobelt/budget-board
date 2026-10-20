@@ -976,6 +976,44 @@ public class WidgetSettingsServiceTests
     }
 
     [Fact]
+    public async Task UpdateWidgetSettingsAsync_WhenFlowsShowRolloversIsOn_ShouldSaveIt()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+        var widget = new WidgetSettings
+        {
+            ID = Guid.NewGuid(),
+            WidgetType = WidgetTypes.Flows,
+            Configuration = "{\"monthCount\":1}",
+            UserID = helper.demoUser.Id,
+        };
+
+        helper.UserDataContext.WidgetSettings.Add(widget);
+        await helper.UserDataContext.SaveChangesAsync();
+
+        // Act
+        await service.UpdateWidgetSettingsAsync(
+            helper.demoUser.Id,
+            [
+                new WidgetSettingsUpdateRequest
+                {
+                    ID = widget.ID,
+                    Configuration = JsonSerializer.SerializeToElement(
+                        new { monthCount = 3, showRollovers = true }
+                    ),
+                },
+            ]
+        );
+
+        // Assert
+        helper
+            .UserDataContext.WidgetSettings.Single(ws => ws.ID == widget.ID)
+            .Configuration.Should()
+            .Be("{\"monthCount\":3,\"showRollovers\":true}");
+    }
+
+    [Fact]
     public async Task UpdateWidgetSettingsAsync_WhenFlowsConfigurationIsMissingMonthCount_ShouldUseDefault()
     {
         // Arrange

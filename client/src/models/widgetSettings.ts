@@ -38,6 +38,8 @@ export interface IAccountsWidgetConfiguration {
 
 export interface IFlowsWidgetConfiguration {
   monthCount: number;
+  /** Whether the flow includes budget rollover balances carried into the period. */
+  showRollovers: boolean;
 }
 
 export interface INetWorthWidgetConfiguration {
