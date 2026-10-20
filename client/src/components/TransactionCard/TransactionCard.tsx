@@ -10,8 +10,6 @@ import TransactionCardDetails from "./TransactionCardDetails/TransactionCardDeta
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-const hoverOpenDelay = 400;
-
 export interface TransactionCardProps extends CardProps {
   transaction: ITransaction;
   categories: ICategory[];
@@ -25,25 +23,14 @@ const TransactionCard = ({
   ...cardProps
 }: TransactionCardProps): React.ReactNode => {
   const { t } = useTranslation();
+  // Details open only when the chevron is clicked, never on hover.
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
-  const [isHovered, setIsHovered] = React.useState(false);
-  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const selectionMode = onToggleSelect !== undefined;
   const hoverable = cardProps.hoverable ?? selectionMode;
-  const isDetailsExpanded = isDetailsOpen || (hoverable && isHovered);
   const detailsId = React.useId();
 
-  React.useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current !== null) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
   const detailsLabel = t(
-    isDetailsExpanded
+    isDetailsOpen
       ? "collapse_transaction_details"
       : "expand_transaction_details",
   );
@@ -64,7 +51,7 @@ const TransactionCard = ({
       size="compact-xs"
       aria-label={detailsLabel}
       title={detailsLabel}
-      aria-expanded={isDetailsExpanded}
+      aria-expanded={isDetailsOpen}
       aria-controls={detailsId}
       onClick={(event) => {
         event.stopPropagation();
@@ -79,34 +66,7 @@ const TransactionCard = ({
   );
 
   return (
-    <div
-      onMouseEnter={() => {
-        if (!hoverable) {
-          return;
-        }
-
-        if (hoverTimeoutRef.current !== null) {
-          clearTimeout(hoverTimeoutRef.current);
-        }
-
-        hoverTimeoutRef.current = setTimeout(() => {
-          setIsHovered(true);
-          hoverTimeoutRef.current = null;
-        }, hoverOpenDelay);
-      }}
-      onMouseLeave={() => {
-        if (!hoverable) {
-          return;
-        }
-
-        if (hoverTimeoutRef.current !== null) {
-          clearTimeout(hoverTimeoutRef.current);
-          hoverTimeoutRef.current = null;
-        }
-
-        setIsHovered(false);
-      }}
-    >
+    <div>
       <Card
         w={cardProps.w ?? "100%"}
         p={cardProps.p ?? "0.2rem"}
@@ -144,7 +104,7 @@ const TransactionCard = ({
             {detailsToggle}
           </Group>
         )}
-        <Collapse id={detailsId} expanded={isDetailsExpanded}>
+        <Collapse id={detailsId} expanded={isDetailsOpen}>
           <TransactionCardDetails transaction={transaction} />
         </Collapse>
       </Card>
