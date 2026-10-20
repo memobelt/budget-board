@@ -45,7 +45,7 @@ public class TransactionService(
         await CreateTransactionAsync(userData, request, deferSave, null);
     }
 
-    private async Task CreateTransactionAsync(
+    private async Task<Transaction> CreateTransactionAsync(
         ApplicationUser userData,
         ITransactionCreateRequest request,
         bool deferSave,
@@ -86,6 +86,8 @@ public class TransactionService(
         {
             await userDataContext.SaveChangesAsync();
         }
+
+        return newTransaction;
 
         void UpdateBalancesForNewTransaction(Account account, ITransactionCreateRequest transaction)
         {
@@ -640,11 +642,36 @@ public class TransactionService(
             (newTransaction.Category, newTransaction.Subcategory) =
                 TransactionCategoriesHelpers.GetFullCategory(coercedCategoryValue, allCategories);
 
-            await CreateTransactionAsync(userData, newTransaction, true, transaction.ID);
+            var createdTransaction = await CreateTransactionAsync(
+                userData,
+                newTransaction,
+                true,
+                transaction.ID
+            );
+
+            var tags = GetImportedTags(transaction.Tags);
+            if (tags.Count > 0)
+            {
+                await tagService.ApplyTagChangesAsync(userData.Id, createdTransaction, tags, null);
+            }
         }
 
         await userDataContext.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Cleans up tags from an imported file so one odd value can't fail the import: blank tags
+    /// are dropped and over-long ones are cut to the maximum length.
+    /// </summary>
+    private static List<string> GetImportedTags(IEnumerable<string>? tags) =>
+        tags == null
+            ? []
+            : tags.Select(tag => tag?.Trim() ?? string.Empty)
+                .Select(tag =>
+                    tag.Length > Tag.MaxValueLength ? tag[..Tag.MaxValueLength].Trim() : tag
+                )
+                .Where(tag => tag.Length > 0)
+                .ToList();
 
     private async Task<ApplicationUser> GetCurrentUserAsync(Guid id)
     {

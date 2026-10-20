@@ -1756,6 +1756,77 @@ public class TransactionServiceTests
     }
 
     [Fact]
+    public async Task ImportTransactionsAsync_WhenTagsGiven_ShouldTagTransactionsAndShareNewTags()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionService(helper);
+
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        helper.UserDataContext.Accounts.Add(account);
+        helper.UserDataContext.SaveChanges();
+
+        var longTag = new string('x', Tag.MaxValueLength + 10);
+        var importRequest = new TransactionImportRequest
+        {
+            Transactions =
+            [
+                new TransactionImport
+                {
+                    Date = new DateOnly(2026, 8, 1),
+                    Amount = -10,
+                    Account = "bongus",
+                    Tags = ["Vacation", " ", "Work"],
+                },
+                new TransactionImport
+                {
+                    Date = new DateOnly(2026, 8, 2),
+                    Amount = -20,
+                    Account = "bongus",
+                    // Same new tag in another casing, plus one that's too long.
+                    Tags = ["vacation", longTag],
+                },
+                new TransactionImport
+                {
+                    Date = new DateOnly(2026, 8, 3),
+                    Amount = -30,
+                    Account = "bongus",
+                },
+            ],
+            AccountNameToIDMap = [new() { AccountName = "bongus", AccountID = account.ID }],
+        };
+
+        // Act
+        await transactionService.ImportTransactionsAsync(helper.demoUser.Id, importRequest);
+
+        // Assert
+        helper.UserDataContext.Transactions.Should().HaveCount(3);
+        helper
+            .UserDataContext.Tags.Select(tag => tag.Value)
+            .Should()
+            .BeEquivalentTo(["Vacation", "Work", new string('x', Tag.MaxValueLength)]);
+
+        List<string> TagsOn(decimal amount)
+        {
+            var transactionId = helper
+                .UserDataContext.Transactions.Single(t => t.Amount == amount)
+                .ID;
+            var tagIds = helper
+                .UserDataContext.TransactionTags.Where(link => link.TransactionID == transactionId)
+                .Select(link => link.TagID)
+                .ToList();
+            return helper
+                .UserDataContext.Tags.Where(tag => tagIds.Contains(tag.ID))
+                .Select(tag => tag.Value)
+                .ToList();
+        }
+
+        TagsOn(-10).Should().BeEquivalentTo(["Vacation", "Work"]);
+        TagsOn(-20).Should().BeEquivalentTo(["Vacation", new string('x', Tag.MaxValueLength)]);
+        TagsOn(-30).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ImportTransactionsAsync_WhenAccountNameUsesDifferentCasingAndDateAndAmountAreNull_ShouldUseDefaultsAndImportTransaction()
     {
         // Arrange

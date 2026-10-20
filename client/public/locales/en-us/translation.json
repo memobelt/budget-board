@@ -357,6 +357,7 @@
   "import_stop_requested": "Stop requested. Finishing the current batch...",
   "import_stopped": "Import stopped.",
   "import_stopping": "Stopping...",
+  "import_tags_column_description": "Separate several tags with commas, semicolons or |",
   "import_transactions": "Import Transactions",
   "imported_transaction": "Imported",
   "in_progress": "In Progress",

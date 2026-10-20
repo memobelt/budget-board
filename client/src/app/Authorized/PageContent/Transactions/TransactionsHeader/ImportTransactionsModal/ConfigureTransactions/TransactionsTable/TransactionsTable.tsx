@@ -42,6 +42,7 @@ const TransactionsTable = (props: TransactionsTableProps): React.ReactNode => {
               <Table.Th>{t("amount")}</Table.Th>
               <Table.Th>{t("account")}</Table.Th>
               <Table.Th>{t("notes")}</Table.Th>
+              <Table.Th>{t("tags")}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -85,6 +86,7 @@ const TransactionsTable = (props: TransactionsTableProps): React.ReactNode => {
                   </Table.Td>
                   <Table.Td>{row.account}</Table.Td>
                   <Table.Td>{row.notes}</Table.Td>
+                  <Table.Td>{row.tags?.join(", ")}</Table.Td>
                 </Table.Tr>
               ))}
           </Table.Tbody>

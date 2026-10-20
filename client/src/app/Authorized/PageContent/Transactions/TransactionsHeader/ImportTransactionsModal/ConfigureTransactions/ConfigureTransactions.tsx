@@ -17,6 +17,7 @@ import { NotificationType, showNotification } from "~/helpers/notifications";
 import { InfoIcon, MoveLeftIcon, MoveRightIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
+import { parseImportedTags } from "~/helpers/tags";
 
 interface ConfigureTransactionsProps {
   csvData: CsvRow[];
@@ -69,6 +70,11 @@ const ConfigureTransactions = (
     notes:
       props.csvHeaders.find((header) => areStringsEqual(header, t("notes"))) ??
       null,
+    tags:
+      props.csvHeaders.find(
+        (header) =>
+          areStringsEqual(header, t("tags")) || areStringsEqual(header, "Tag"),
+      ) ?? null,
     incomeAmount: null,
     expenseAmount: null,
   });
@@ -355,6 +361,9 @@ const ConfigureTransactions = (
             ? String(row[columnsSelect.account])
             : null,
         notes: getImportedTextValue(columnsSelect.notes),
+        tags: columnsSelect.tags
+          ? parseImportedTags(getImportedTextValue(columnsSelect.tags))
+          : null,
         type:
           columnsOptions.includeExpensesColumn &&
           columnsOptions.expensesColumn &&

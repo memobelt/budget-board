@@ -108,6 +108,11 @@ public class TransactionImport
     public decimal? Amount { get; set; } = null;
     public string? Notes { get; set; } = null;
     public string Account { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tags to add to the imported transaction.
+    /// </summary>
+    public IEnumerable<string>? Tags { get; set; } = null;
 }
 
 public class AccountNameToIDKeyValuePair
