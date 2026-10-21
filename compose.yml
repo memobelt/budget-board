@@ -29,6 +29,8 @@ services:
       DISABLE_AUTO_SYNC: ${DISABLE_AUTO_SYNC:-false}
       SYNC_INTERVAL_HOURS: ${SYNC_INTERVAL_HOURS:-8}
       TZ: ${TZ:-UTC}
+    volumes:
+      - ${LOGS_DIR:-./logs}:/app/Logs
     networks:
       - budget-board-network
     depends_on:

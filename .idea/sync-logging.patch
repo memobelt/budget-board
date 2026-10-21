@@ -1,0 +1,136 @@
+diff --git a/server/BudgetBoard.Service/LunchFlowService.cs b/server/BudgetBoard.Service/LunchFlowService.cs
+index 215ffbd2..2d11029f 100644
+--- a/server/BudgetBoard.Service/LunchFlowService.cs
++++ b/server/BudgetBoard.Service/LunchFlowService.cs
+@@ -383,10 +383,15 @@ private async Task<IList<string>> SyncTransactionsAsync(Guid userGuid)
+                     || DateOnly.Parse(t.Date) >= lunchFlowAccount.SyncStartDate.Value
+                 );
+ 
++                var receivedCount = lunchFlowTransactionsData.Transactions.Count();
++                var createdCount = 0;
++                var existingCount = 0;
++
+                 foreach (var transaction in transactionsToSync)
+                 {
+                     if (userTransactions.Any(t => t.SyncID != null && t.SyncID == transaction.ID))
+                     {
++                        existingCount++;
+                         continue;
+                     }
+ 
+@@ -402,7 +407,34 @@ private async Task<IList<string>> SyncTransactionsAsync(Guid userGuid)
+                             Source = TransactionSource.LunchFlow,
+                         }
+                     );
++                    createdCount++;
++
++                    logger.LogInformation(
++                        "{LogMessage}",
++                        logLocalizer[
++                            "LunchFlowTransactionSyncedLog",
++                            transaction.ID,
++                            userAccount.Name,
++                            transaction.Amount,
++                            transaction.Date,
++                            transaction.IsPending?.ToString() ?? "unknown",
++                            transaction.Merchant ?? string.Empty,
++                            transaction.Description ?? string.Empty
++                        ]
++                    );
+                 }
++
++                logger.LogInformation(
++                    "{LogMessage}",
++                    logLocalizer[
++                        "LunchFlowTransactionSyncSummaryLog",
++                        userAccount.Name,
++                        receivedCount,
++                        createdCount,
++                        existingCount,
++                        receivedCount - createdCount - existingCount
++                    ]
++                );
+             }
+             catch (Exception ex)
+             {
+diff --git a/server/BudgetBoard.Service/Resources/LogStrings.resx b/server/BudgetBoard.Service/Resources/LogStrings.resx
+index e7687bf4..3b60811d 100644
+--- a/server/BudgetBoard.Service/Resources/LogStrings.resx
++++ b/server/BudgetBoard.Service/Resources/LogStrings.resx
+@@ -496,4 +496,16 @@
+     <data name="BillInvalidAccountLastFourLog" xml:space="preserve">
+         <value>Attempted to save a bill with invalid account last four digits.</value>
+     </data>
++    <data name="SimpleFinTransactionSyncedLog" xml:space="preserve">
++        <value>Synced SimpleFIN transaction {0} to account '{1}': raw amount '{2}', saved amount {3}, date {4}, pending {5}, description '{6}'.</value>
++    </data>
++    <data name="SimpleFinTransactionSyncSummaryLog" xml:space="preserve">
++        <value>SimpleFIN transaction sync for account '{0}': {1} received, {2} created, {3} already existed, {4} skipped (before sync start date).</value>
++    </data>
++    <data name="LunchFlowTransactionSyncedLog" xml:space="preserve">
++        <value>Synced LunchFlow transaction {0} to account '{1}': amount {2}, date {3}, pending {4}, merchant '{5}', description '{6}'.</value>
++    </data>
++    <data name="LunchFlowTransactionSyncSummaryLog" xml:space="preserve">
++        <value>LunchFlow transaction sync for account '{0}': {1} received, {2} created, {3} already existed, {4} skipped (before sync start date).</value>
++    </data>
+ </root>
+\ No newline at end of file
+diff --git a/server/BudgetBoard.Service/SimpleFinService.cs b/server/BudgetBoard.Service/SimpleFinService.cs
+index c476afab..3d119544 100644
+--- a/server/BudgetBoard.Service/SimpleFinService.cs
++++ b/server/BudgetBoard.Service/SimpleFinService.cs
+@@ -671,6 +671,10 @@ IEnumerable<ISimpleFinTransactionData> transactionsData
+             ) >= simpleFinAccount.SyncStartDate.Value
+         );
+ 
++        var receivedCount = transactionsData.Count();
++        var createdCount = 0;
++        var existingCount = 0;
++
+         foreach (var transactionData in transactionsToSync)
+         {
+             if (
+@@ -683,6 +687,7 @@ IEnumerable<ISimpleFinTransactionData> transactionsData
+             )
+             {
+                 // Transaction already exists.
++                existingCount++;
+                 continue;
+             }
+ 
+@@ -701,8 +706,35 @@ IEnumerable<ISimpleFinTransactionData> transactionsData
+             };
+ 
+             await transactionService.CreateTransactionAsync(userData, newTransaction);
++            createdCount++;
++
++            logger.LogInformation(
++                "{LogMessage}",
++                logLocalizer[
++                    "SimpleFinTransactionSyncedLog",
++                    transactionData.Id,
++                    userAccount.Name,
++                    transactionData.Amount,
++                    newTransaction.Amount,
++                    newTransaction.Date,
++                    transactionData.Pending,
++                    transactionData.Description
++                ]
++            );
+         }
+ 
++        logger.LogInformation(
++            "{LogMessage}",
++            logLocalizer[
++                "SimpleFinTransactionSyncSummaryLog",
++                userAccount.Name,
++                receivedCount,
++                createdCount,
++                existingCount,
++                receivedCount - createdCount - existingCount
++            ]
++        );
++
+         return errors;
+     }
+ 

@@ -496,4 +496,16 @@
     <data name="BillInvalidAccountLastFourLog" xml:space="preserve">
         <value>Attempted to save a bill with invalid account last four digits.</value>
     </data>
+    <data name="SimpleFinTransactionSyncedLog" xml:space="preserve">
+        <value>Synced SimpleFIN transaction {0} to account '{1}': raw amount '{2}', saved amount {3}, date {4}, pending {5}, description '{6}'.</value>
+    </data>
+    <data name="SimpleFinTransactionSyncSummaryLog" xml:space="preserve">
+        <value>SimpleFIN transaction sync for account '{0}': {1} received, {2} created, {3} already existed, {4} skipped (before sync start date).</value>
+    </data>
+    <data name="LunchFlowTransactionSyncedLog" xml:space="preserve">
+        <value>Synced LunchFlow transaction {0} to account '{1}': amount {2}, date {3}, pending {4}, merchant '{5}', description '{6}'.</value>
+    </data>
+    <data name="LunchFlowTransactionSyncSummaryLog" xml:space="preserve">
+        <value>LunchFlow transaction sync for account '{0}': {1} received, {2} created, {3} already existed, {4} skipped (before sync start date).</value>
+    </data>
 </root>

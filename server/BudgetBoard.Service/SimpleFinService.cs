@@ -671,6 +671,10 @@ public class SimpleFinService(
             ) >= simpleFinAccount.SyncStartDate.Value
         );
 
+        var receivedCount = transactionsData.Count();
+        var createdCount = 0;
+        var existingCount = 0;
+
         foreach (var transactionData in transactionsToSync)
         {
             if (
@@ -683,6 +687,7 @@ public class SimpleFinService(
             )
             {
                 // Transaction already exists.
+                existingCount++;
                 continue;
             }
 
@@ -701,7 +706,32 @@ public class SimpleFinService(
             };
 
             await transactionService.CreateTransactionAsync(userData, newTransaction);
+            createdCount++;
+
+            logger.LogTransactionSync(
+                logLocalizer[
+                    "SimpleFinTransactionSyncedLog",
+                    transactionData.Id,
+                    userAccount.Name,
+                    transactionData.Amount,
+                    newTransaction.Amount,
+                    newTransaction.Date,
+                    transactionData.Pending,
+                    transactionData.Description
+                ]
+            );
         }
+
+        logger.LogTransactionSync(
+            logLocalizer[
+                "SimpleFinTransactionSyncSummaryLog",
+                userAccount.Name,
+                receivedCount,
+                createdCount,
+                existingCount,
+                receivedCount - createdCount - existingCount
+            ]
+        );
 
         return errors;
     }
