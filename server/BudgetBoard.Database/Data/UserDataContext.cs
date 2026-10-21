@@ -29,6 +29,7 @@ public class UserDataContext(DbContextOptions<UserDataContext> options)
     public DbSet<TransactionTag> TransactionTags { get; set; }
     public DbSet<Budget> Budgets { get; set; }
     public DbSet<Goal> Goals { get; set; }
+    public DbSet<Bill> Bills { get; set; }
     public DbSet<Balance> Balances { get; set; }
     public DbSet<Category> TransactionCategories { get; set; }
     public DbSet<CategoryIcon> TransactionCategoryIcons { get; set; }
@@ -217,6 +218,20 @@ public class UserDataContext(DbContextOptions<UserDataContext> options)
                 g.ToTable("Goal");
             }
         );
+
+        modelBuilder.Entity<Bill>(b =>
+        {
+            b.Property(e => e.Name).HasMaxLength(Bill.MaxNameLength).IsRequired();
+            b.HasOne(e => e.User)
+                .WithMany(e => e.Bills)
+                .HasForeignKey(e => e.UserID)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(e => e.Account)
+                .WithMany()
+                .HasForeignKey(e => e.AccountID)
+                .OnDelete(DeleteBehavior.SetNull);
+            b.ToTable("Bill");
+        });
 
         modelBuilder.Entity<Balance>().ToTable("Balance");
 
