@@ -20,6 +20,7 @@ import { useTransactionFilters } from "~/providers/TransactionFiltersProvider/Tr
 import { useTranslation } from "react-i18next";
 import ExportTransactionsModal from "./ExportTransactionsModal/ExportTransactionsModal";
 import QuickMonthSelect from "~/components/QuickMonthSelect/QuickMonthSelect";
+import useIsMobile from "~/hooks/useIsMobile";
 import { Filters, ITransaction } from "~/models/transaction";
 import {
   buildTimeToMonthlyTotalsMap,
@@ -53,6 +54,7 @@ const TransactionsHeader = (
   props: TransactionsHeaderProps,
 ): React.ReactNode => {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const { transactionFilters, isFiltersPanelOpen, toggleFiltersPanel } =
     useTransactionFilters();
   const { allTransactionCategories, getCategoryType } =
@@ -226,8 +228,9 @@ const TransactionsHeader = (
           </Stack>
         </Group>
         <Group className={classes.buttonGroup}>
-          <ImportTransactionsModal />
-          <ExportTransactionsModal />
+          {/* Importing and exporting files aren't useful on a phone. */}
+          {!isMobile && <ImportTransactionsModal />}
+          {!isMobile && <ExportTransactionsModal />}
           <Button
             variant="filled"
             color="primary"
