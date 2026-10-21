@@ -493,4 +493,7 @@
     <data name="BillNotFoundLog" xml:space="preserve">
         <value>Attempted to access a bill that does not exist.</value>
     </data>
+    <data name="BillInvalidAccountLastFourLog" xml:space="preserve">
+        <value>Attempted to save a bill with invalid account last four digits.</value>
+    </data>
 </root>

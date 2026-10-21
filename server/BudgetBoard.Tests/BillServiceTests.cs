@@ -248,4 +248,67 @@ public class BillServiceTests
 
         helper.UserDataContext.Bills.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task CreateBillAsync_WithAccountLastFour_ShouldStoreDigits()
+    {
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+
+        await service.CreateBillAsync(
+            helper.demoUser.Id,
+            new BillCreateRequest
+            {
+                Name = "Visa",
+                DueDay = 1,
+                AccountLastFour = " 1234 ",
+            }
+        );
+
+        helper.UserDataContext.Bills.Single().AccountLastFour.Should().Be("1234");
+    }
+
+    [Fact]
+    public async Task CreateBillAsync_WithBlankAccountLastFour_ShouldStoreNull()
+    {
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+
+        await service.CreateBillAsync(
+            helper.demoUser.Id,
+            new BillCreateRequest
+            {
+                Name = "Visa",
+                DueDay = 1,
+                AccountLastFour = "  ",
+            }
+        );
+
+        helper.UserDataContext.Bills.Single().AccountLastFour.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("123")]
+    [InlineData("12345")]
+    [InlineData("12a4")]
+    public async Task CreateBillAsync_WithInvalidAccountLastFour_ShouldThrow(string lastFour)
+    {
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+
+        var act = async () =>
+            await service.CreateBillAsync(
+                helper.demoUser.Id,
+                new BillCreateRequest
+                {
+                    Name = "Visa",
+                    DueDay = 1,
+                    AccountLastFour = lastFour,
+                }
+            );
+
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("BillInvalidAccountLastFourError");
+    }
 }

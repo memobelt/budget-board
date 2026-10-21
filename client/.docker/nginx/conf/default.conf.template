@@ -15,6 +15,9 @@ server {
     # Serve translation files directly; return 404 if missing so i18next can
     # handle the fallback gracefully instead of receiving index.html as JSON.
     root /usr/share/nginx/html;
+    # Translation files keep the same URL across releases, so make browsers
+    # revalidate them on every load instead of reusing a stale cached copy.
+    add_header Cache-Control "no-cache" always;
     try_files ${DOLLAR}uri =404;
   }
 

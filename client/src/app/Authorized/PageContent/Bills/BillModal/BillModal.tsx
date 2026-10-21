@@ -41,6 +41,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
   const [useAccountBalance, setUseAccountBalance] = React.useState(false);
   const [amount, setAmount] = React.useState<number>(0);
   const [dueDay, setDueDay] = React.useState<number>(1);
+  const [accountLastFour, setAccountLastFour] = React.useState("");
 
   React.useEffect(() => {
     if (!props.isOpen) {
@@ -51,6 +52,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
     setUseAccountBalance(props.bill?.useAccountBalance ?? false);
     setAmount(props.bill?.amount ?? 0);
     setDueDay(props.bill?.dueDay ?? 1);
+    setAccountLastFour(props.bill?.accountLastFour ?? "");
   }, [props.isOpen, props.bill]);
 
   const accountOptions = (accountsQuery.data ?? [])
@@ -63,7 +65,8 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
     dueDay >= 1 &&
     dueDay <= 31 &&
     amount >= 0 &&
-    (!useAccountBalance || accountId !== null);
+    (!useAccountBalance || accountId !== null) &&
+    (accountLastFour.length === 0 || /^\d{4}$/.test(accountLastFour));
 
   const isSaving = createBillMutation.isPending || updateBillMutation.isPending;
 
@@ -74,6 +77,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
       dueDay,
       useAccountBalance,
       accountID: accountId,
+      accountLastFour: accountLastFour.length > 0 ? accountLastFour : null,
     };
 
     if (props.bill) {
@@ -113,6 +117,22 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
               setUseAccountBalance(false);
             }
           }}
+        />
+        <TextInput
+          label={t("bill_account_last_four")}
+          description={t("bill_account_last_four_description")}
+          placeholder="1234"
+          inputMode="numeric"
+          maxLength={4}
+          value={accountLastFour}
+          onChange={(e) =>
+            setAccountLastFour(e.currentTarget.value.replace(/\D/g, ""))
+          }
+          error={
+            accountLastFour.length > 0 && accountLastFour.length < 4
+              ? t("bill_account_last_four_invalid")
+              : undefined
+          }
         />
         <Checkbox
           label={t("bill_use_account_balance")}

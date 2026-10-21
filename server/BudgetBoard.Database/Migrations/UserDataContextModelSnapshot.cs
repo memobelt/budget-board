@@ -305,6 +305,10 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<Guid?>("AccountID")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AccountLastFour")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 

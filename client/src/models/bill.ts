@@ -4,6 +4,7 @@ export interface IBillCreateRequest {
   dueDay: number;
   useAccountBalance: boolean;
   accountID: string | null;
+  accountLastFour: string | null;
 }
 
 export interface IBillUpdateRequest extends IBillCreateRequest {
@@ -18,6 +19,7 @@ export interface IBillResponse {
   dueDay: number;
   useAccountBalance: boolean;
   accountID: string | null;
+  accountLastFour: string | null;
   lastPaidDueDate: string | null;
   userID: string;
 }
