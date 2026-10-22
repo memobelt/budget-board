@@ -15,6 +15,7 @@ import { Trans, useTranslation } from "react-i18next";
 import CategoryIconPicker from "~/components/CategoryIconPicker/CategoryIconPicker";
 import BudgetMetrics from "../BudgetMetrics/BudgetMetrics";
 import RolloverButton from "../RolloverButton/RolloverButton";
+import MatchSpendingButton from "../MatchSpendingButton/MatchSpendingButton";
 import { type ICategoryNode } from "~/models/category";
 import { getCategoryIcon } from "~/helpers/category";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
@@ -200,6 +201,13 @@ const BudgetParentItem = (props: BudgetParentItemProps): React.ReactNode => {
     });
   };
 
+  // What the limit would be to match what's been used this month. It can't be
+  // less than its subcategories' limits combined.
+  const matchingLimit = Math.max(
+    childLimitsTotal,
+    Math.max(0, Math.round(props.isIncome ? amount : -amount)),
+  );
+
   return (
     <Group gap="0.75rem" align="flex-start" wrap="nowrap">
       <Stack gap={0} w="100%">
@@ -320,6 +328,14 @@ const BudgetParentItem = (props: BudgetParentItemProps): React.ReactNode => {
           gap="0.25rem"
           onClick={(e) => e.stopPropagation()}
         >
+          <MatchSpendingButton
+            matchingLimit={matchingLimit}
+            currentLimit={limit}
+            onMatch={(newLimit) => {
+              newLimitField.setValue(newLimit);
+              handleEdit(newLimit);
+            }}
+          />
           <RolloverButton
             category={props.categoryNode.value}
             rolloverStartMonth={rolloverStartMonth}
