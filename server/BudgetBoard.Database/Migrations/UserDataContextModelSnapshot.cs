@@ -309,7 +309,7 @@ namespace BudgetBoard.Database.Migrations
                         .HasMaxLength(4)
                         .HasColumnType("character varying(4)");
 
-                    b.Property<decimal>("Amount")
+                    b.Property<decimal?>("Amount")
                         .HasColumnType("numeric");
 
                     b.Property<int>("DueDay")

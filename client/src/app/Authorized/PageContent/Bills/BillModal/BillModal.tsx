@@ -39,7 +39,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
   const [name, setName] = React.useState("");
   const [accountId, setAccountId] = React.useState<string | null>(null);
   const [useAccountBalance, setUseAccountBalance] = React.useState(false);
-  const [amount, setAmount] = React.useState<number>(0);
+  const [amount, setAmount] = React.useState<number | null>(null);
   const [dueDay, setDueDay] = React.useState<number>(1);
   const [accountLastFour, setAccountLastFour] = React.useState("");
 
@@ -50,7 +50,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
     setName(props.bill?.name ?? "");
     setAccountId(props.bill?.accountID ?? null);
     setUseAccountBalance(props.bill?.useAccountBalance ?? false);
-    setAmount(props.bill?.amount ?? 0);
+    setAmount(props.bill?.amount ?? null);
     setDueDay(props.bill?.dueDay ?? 1);
     setAccountLastFour(props.bill?.accountLastFour ?? "");
   }, [props.isOpen, props.bill]);
@@ -64,7 +64,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
     name.trim().length > 0 &&
     dueDay >= 1 &&
     dueDay <= 31 &&
-    amount >= 0 &&
+    (amount === null || amount >= 0) &&
     (!useAccountBalance || accountId !== null) &&
     (accountLastFour.length === 0 || /^\d{4}$/.test(accountLastFour));
 
@@ -73,7 +73,7 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
   const save = () => {
     const fields = {
       name: name.trim(),
-      amount: useAccountBalance ? 0 : amount,
+      amount: useAccountBalance ? null : amount,
       dueDay,
       useAccountBalance,
       accountID: accountId,
@@ -148,8 +148,12 @@ const BillModal = (props: BillModalProps): React.ReactNode => {
             decimalScale={decimalPlaces}
             thousandSeparator={thousandsSeparator}
             decimalSeparator={decimalSeparator}
-            value={amount}
-            onChange={(value) => setAmount(toNumber(value))}
+            description={t("bill_amount_description")}
+            placeholder={t("bill_amount_placeholder")}
+            value={amount ?? ""}
+            onChange={(value) =>
+              setAmount(value === "" ? null : toNumber(value))
+            }
           />
         )}
         <NumberInput

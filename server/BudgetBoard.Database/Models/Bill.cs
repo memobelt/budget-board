@@ -19,9 +19,10 @@ public class Bill
     public required string Name { get; set; }
 
     /// <summary>
-    /// The fixed amount due. Ignored when <see cref="UseAccountBalance"/> is true.
+    /// The fixed amount due, or null when no amount has been entered.
+    /// Ignored when <see cref="UseAccountBalance"/> is true.
     /// </summary>
-    public decimal Amount { get; set; } = 0.0M;
+    public decimal? Amount { get; set; } = null;
 
     /// <summary>
     /// Day of the month the bill is due (1-31). Clamped to the last day for shorter months.

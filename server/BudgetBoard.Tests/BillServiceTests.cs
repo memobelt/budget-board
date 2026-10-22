@@ -311,4 +311,27 @@ public class BillServiceTests
             .ThrowAsync<BudgetBoardServiceException>()
             .WithMessage("BillInvalidAccountLastFourError");
     }
+
+    [Fact]
+    public async Task UpdateBillAsync_WithNullAmount_ShouldClearAmountAndKeepBill()
+    {
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+        var bill = AddBill(helper);
+
+        await service.UpdateBillAsync(
+            helper.demoUser.Id,
+            new BillUpdateRequest
+            {
+                ID = bill.ID,
+                Name = bill.Name,
+                Amount = null,
+                DueDay = bill.DueDay,
+            }
+        );
+
+        var updated = helper.UserDataContext.Bills.Single();
+        updated.Amount.Should().BeNull();
+        updated.Name.Should().Be(bill.Name);
+    }
 }

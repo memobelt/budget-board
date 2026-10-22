@@ -29,7 +29,7 @@ interface BillCardProps {
   bill: IBillResponse;
   entry: IBillMonthEntry;
   accountName: string | null;
-  amountDue: number;
+  amountDue: number | null;
   onEdit: (bill: IBillResponse) => void;
 }
 
@@ -86,7 +86,8 @@ const BillCard = (props: BillCardProps): React.ReactNode => {
   const getAmount = () => {
     // The amount actually paid isn't recorded, and a linked account's balance
     // no longer reflects a payment that has already been made.
-    if (isPaid && props.bill.useAccountBalance) {
+    // Bills without an amount entered also show a dash.
+    if ((isPaid && props.bill.useAccountBalance) || props.amountDue === null) {
       return "—";
     }
     return formatSensitiveAmount(props.amountDue, SignDisplay.Auto);
@@ -142,7 +143,7 @@ const BillCard = (props: BillCardProps): React.ReactNode => {
                 </ActionIcon>
               </Tooltip>
             )}
-            {props.entry.isNextDue && (
+            {props.entry.isNextDue && props.amountDue !== null && (
               <Button
                 variant="filled"
                 color="primary"

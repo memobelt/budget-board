@@ -98,7 +98,7 @@ public class BillService(
     private string ValidateFields(
         ApplicationUser userData,
         string? name,
-        decimal amount,
+        decimal? amount,
         int dueDay,
         bool useAccountBalance,
         Guid? accountId

@@ -1,8 +1,8 @@
 import { Group, Skeleton, Stack } from "@mantine/core";
-import { BodyText, Button, Tooltip } from "@teelur/budget-board-ui";
+import { BodyText, Button, Modal, Tooltip } from "@teelur/budget-board-ui";
 import { useDisclosure } from "@mantine/hooks";
 import { AxiosError } from "axios";
-import { CheckCheckIcon, InfoIcon, PlusIcon } from "lucide-react";
+import { CheckCheckIcon, EraserIcon, InfoIcon, PlusIcon } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,6 +32,11 @@ const Bills = (): React.ReactNode => {
   const accountsQuery = useAccountsQuery();
   const updateBillMutation = useUpdateBillMutation();
   const [isMarkingAllPaid, setIsMarkingAllPaid] = React.useState(false);
+  const [isClearingAll, setIsClearingAll] = React.useState(false);
+  const [
+    isClearConfirmOpen,
+    { open: openClearConfirm, close: closeClearConfirm },
+  ] = useDisclosure();
 
   const [month, setMonth] = React.useState(() => dayjs().startOf("month"));
   const [isModalOpen, { open: openModal, close: closeModal }] = useDisclosure();
@@ -84,7 +89,7 @@ const Bills = (): React.ReactNode => {
       (r) => r.entry.status === BillMonthStatus.Overdue,
     );
     const sum = (items: typeof rows) =>
-      items.reduce((total, r) => total + r.amountDue, 0);
+      items.reduce((total, r) => total + (r.amountDue ?? 0), 0);
 
     return {
       monthLabel: month.format("MMMM YYYY"),
@@ -98,7 +103,10 @@ const Bills = (): React.ReactNode => {
   }, [rows]);
 
   // Only each bill's earliest unpaid due date can be marked paid, so payments stay in order.
-  const payableRows = rows.filter((r) => r.entry.isNextDue);
+  // Bills without an amount can't be marked paid.
+  const payableRows = rows.filter(
+    (r) => r.entry.isNextDue && r.amountDue !== null,
+  );
 
   const markAllPaid = async () => {
     setIsMarkingAllPaid(true);
@@ -114,6 +122,27 @@ const Bills = (): React.ReactNode => {
       );
     } finally {
       setIsMarkingAllPaid(false);
+    }
+  };
+
+  // Bills that use an account balance have no amount of their own to clear.
+  const clearableBills = (billsQuery.data ?? []).filter(
+    (bill) => bill.amount !== null && !bill.useAccountBalance,
+  );
+
+  const clearAllAmounts = async () => {
+    setIsClearingAll(true);
+    try {
+      await Promise.allSettled(
+        clearableBills.map((bill) =>
+          updateBillMutation.mutateAsync(
+            buildBillUpdateRequest(bill, { amount: null }),
+          ),
+        ),
+      );
+    } finally {
+      setIsClearingAll(false);
+      closeClearConfirm();
     }
   };
 
@@ -164,9 +193,52 @@ const Bills = (): React.ReactNode => {
   return (
     <Stack w="100%" maw={1400} gap="0.75rem">
       <BillModal isOpen={isModalOpen} onClose={closeModal} bill={editingBill} />
+      <Modal
+        opened={isClearConfirmOpen}
+        onClose={closeClearConfirm}
+        title={t("bills_clear_all_title")}
+      >
+        <Stack gap="1rem">
+          <BodyText tone="secondary" size="sm">
+            {t("bills_clear_all_confirm", { count: clearableBills.length })}
+          </BodyText>
+          <Group justify="flex-end">
+            <Button
+              variant="ghost"
+              color="muted"
+              size="sm"
+              onClick={closeClearConfirm}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="filled"
+              color="error"
+              size="sm"
+              loading={isClearingAll}
+              onClick={clearAllAmounts}
+            >
+              {t("bills_clear_all")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <Group justify="space-between" gap="0.5rem">
         <BillsMonthSelect month={month} setMonth={setMonth} />
-        <Group gap="0.5rem" wrap="nowrap">
+        <Group gap="0.5rem">
+          <Tooltip label={t("bills_clear_all_description")}>
+            <Button
+              variant="outline"
+              color="error"
+              size="compact-sm"
+              leftSection={<EraserIcon size="1rem" />}
+              disabled={clearableBills.length === 0}
+              loading={isClearingAll}
+              onClick={openClearConfirm}
+            >
+              {t("bills_clear_all")}
+            </Button>
+          </Tooltip>
           <Tooltip label={t("bills_mark_all_paid_description")}>
             <Button
               variant="outline"
