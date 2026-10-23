@@ -1,7 +1,6 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosResponse } from "axios";
-import { useIdle } from "@mantine/hooks";
 import { useAuth } from "~/providers/AuthProvider/AuthProvider";
 import { useTransactionFilters } from "~/providers/TransactionFiltersProvider/TransactionFiltersProvider";
 import {
@@ -13,15 +12,13 @@ import { IApplicationUserVisitResponse } from "~/models/applicationUser";
 import { Filters, ITransaction } from "~/models/transaction";
 import { isTransactionNewSince } from "~/helpers/transactions";
 
-// While the app is open and in use, tell the server every few minutes so it
-// knows the visit is still going. Coming back after the server's idle timeout
-// (30 minutes) starts a new visit.
-const visitHeartbeatMs = 5 * 60 * 1000;
-
 interface NewTransactionsContextType {
-  /** Synced transactions added after this time are new; null until the visit is recorded. */
+  /**
+   * Synced transactions added after this time are new; null until loaded.
+   * Only moves forward when the user marks transactions as seen.
+   */
   newSince: Date | null;
-  /** Synced transactions added since the last visit, most recent first. */
+  /** Synced transactions not yet marked as seen, most recent first. */
   newTransactions: ITransaction[];
   isNewTransactionsPending: boolean;
   isNewTransaction: (transaction: ITransaction) => boolean;
@@ -58,7 +55,6 @@ export const NewTransactionsProvider = (
   });
   const queryClient = useQueryClient();
   const { navigateToTransactions } = useTransactionFilters();
-  const isIdle = useIdle(visitHeartbeatMs, { initialState: false });
 
   const [newSince, setNewSince] = React.useState<Date | null>(null);
   const [isMarkingSeen, setIsMarkingSeen] = React.useState(false);
@@ -84,11 +80,12 @@ export const NewTransactionsProvider = (
       });
       applyVisitResponse(res.data as IApplicationUserVisitResponse);
     } catch {
-      // Not being able to record the visit only means nothing is marked new.
+      // Not being able to reach the server only means nothing is marked new.
     }
   }, [applyVisitResponse]);
 
-  // Record the visit when the app opens and whenever the tab comes back into view.
+  // Load when the app opens, and again when the tab comes back into view in
+  // case transactions were marked as seen on another device.
   React.useEffect(() => {
     void recordVisit();
 
@@ -101,20 +98,6 @@ export const NewTransactionsProvider = (
     return () =>
       document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [recordVisit]);
-
-  // Keep the visit going while the user is actually using the app.
-  React.useEffect(() => {
-    if (isIdle) {
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void recordVisit();
-      }
-    }, visitHeartbeatMs);
-    return () => window.clearInterval(interval);
-  }, [isIdle, recordVisit]);
 
   const newTransactionsQuery = useQuery({
     queryKey: [

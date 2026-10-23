@@ -32,7 +32,7 @@ public class ApplicationUser : IdentityUser<Guid>
 
     /// <summary>
     /// Transactions synced after this date and time (UTC) are shown as new.
-    /// Set to the end of the user's previous visit when a new visit starts.
+    /// Moves forward only when the user marks their new transactions as seen.
     /// </summary>
     public DateTime NewTransactionsSince { get; set; } = DateTime.MinValue;
 

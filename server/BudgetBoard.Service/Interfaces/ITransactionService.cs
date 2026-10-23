@@ -36,7 +36,7 @@ public interface ITransactionService
     );
 
     /// <summary>
-    /// Retrieves the synced transactions that arrived after the user's previous visit
+    /// Retrieves the synced transactions that arrived since the user last marked transactions as seen
     /// (see <see cref="BudgetBoard.Database.Models.ApplicationUser.NewTransactionsSince"/>).
     /// Manually entered, deleted and hidden-account transactions are left out.
     /// </summary>

@@ -20,8 +20,8 @@ import { usePrivacyMode } from "~/providers/PrivacyModeProvider/PrivacyModeProvi
 const maxListed = 5;
 
 /**
- * Tells the user which transactions synced from their banks since their last
- * visit. Only shown when there are some.
+ * Tells the user which synced transactions they haven't marked as seen yet.
+ * Only shown when there are some.
  */
 const NewTransactionsNotice = (): React.ReactNode => {
   const { t } = useTranslation();

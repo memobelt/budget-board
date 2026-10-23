@@ -20,11 +20,6 @@ public class ApplicationUserService(
 {
     public const string OidcLoginProvider = "oidc";
 
-    /// <summary>
-    /// How long the user must be away before returning counts as a new visit.
-    /// </summary>
-    public static readonly TimeSpan VisitIdleTimeout = TimeSpan.FromMinutes(30);
-
     private readonly INowProvider _nowProvider = nowProvider ?? new NowProvider();
 
     /// <inheritdoc />
@@ -60,15 +55,11 @@ public class ApplicationUserService(
         var userData = await GetCurrentUserAsync(userGuid);
         var now = _nowProvider.UtcNow;
 
-        if (userData.LastActive == DateTime.MinValue)
+        if (userData.NewTransactionsSince == DateTime.MinValue)
         {
             // First visit since this feature was added: nothing is new yet.
+            // After this, transactions stay new until the user marks them as seen.
             userData.NewTransactionsSince = now;
-        }
-        else if (now - userData.LastActive > VisitIdleTimeout)
-        {
-            // A new visit: anything synced after the user was last here is new.
-            userData.NewTransactionsSince = userData.LastActive;
         }
 
         userData.LastActive = now;
