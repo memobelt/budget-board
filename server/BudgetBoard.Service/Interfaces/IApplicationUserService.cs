@@ -28,6 +28,22 @@ public interface IApplicationUserService
     Task UpdateApplicationUserAsync(Guid userGuid, IApplicationUserUpdateRequest request);
 
     /// <summary>
+    /// Records that the user is active in the app. If the user has been away longer than
+    /// <see cref="ApplicationUserService.VisitIdleTimeout"/>, a new visit starts and transactions
+    /// synced since the end of the previous visit are marked as new.
+    /// </summary>
+    /// <param name="userGuid">The unique identifier of the user.</param>
+    /// <returns>The time after which synced transactions count as new.</returns>
+    Task<IApplicationUserVisitResponse> RecordVisitAsync(Guid userGuid);
+
+    /// <summary>
+    /// Marks every transaction synced so far as seen, so none of them show as new.
+    /// </summary>
+    /// <param name="userGuid">The unique identifier of the user.</param>
+    /// <returns>The time after which synced transactions count as new.</returns>
+    Task<IApplicationUserVisitResponse> MarkTransactionsSeenAsync(Guid userGuid);
+
+    /// <summary>
     /// Connects an OIDC login for a specific application user.
     /// </summary>
     /// <param name="userGuid">The unique identifier of the user.</param>

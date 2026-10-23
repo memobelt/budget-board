@@ -60,6 +60,42 @@ public class ApplicationUserController(
         });
     }
 
+    [HttpPost]
+    [Route("[action]")]
+    [Authorize]
+    public async Task<IActionResult> Visit()
+    {
+        return await HandleRequestAsync(async () =>
+        {
+            var userId = userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            {
+                return Unauthorized();
+            }
+
+            return Ok(await applicationUserService.RecordVisitAsync(parsedUserId));
+        });
+    }
+
+    [HttpPost]
+    [Route("[action]")]
+    [Authorize]
+    public async Task<IActionResult> MarkTransactionsSeen()
+    {
+        return await HandleRequestAsync(async () =>
+        {
+            var userId = userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            {
+                return Unauthorized();
+            }
+
+            return Ok(await applicationUserService.MarkTransactionsSeenAsync(parsedUserId));
+        });
+    }
+
     [HttpGet]
     [Route("[action]")]
     public IActionResult IsSignedIn() => Ok(HttpContext.User?.Identity?.IsAuthenticated ?? false);

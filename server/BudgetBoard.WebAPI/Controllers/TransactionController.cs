@@ -148,6 +148,24 @@ public class TransactionController(
 
     [HttpGet]
     [Authorize]
+    [Route("new")]
+    public async Task<IActionResult> ReadNew()
+    {
+        return await HandleRequestAsync(async () =>
+        {
+            var userId = userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            {
+                return Unauthorized();
+            }
+
+            return Ok(await transactionService.ReadNewTransactionsAsync(parsedUserId));
+        });
+    }
+
+    [HttpGet]
+    [Authorize]
     [Route("link-candidates/{transactionID:guid}")]
     public async Task<IActionResult> ReadLinkCandidates(Guid transactionID, int dateWindowDays = 3)
     {

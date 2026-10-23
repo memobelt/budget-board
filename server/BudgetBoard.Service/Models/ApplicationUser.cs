@@ -25,6 +25,7 @@ public interface IApplicationUserResponse
     bool SimpleFinAccessToken { get; }
     bool LunchFlowApiKey { get; }
     DateTime LastSync { get; }
+    DateTime NewTransactionsSince { get; }
     bool TwoFactorEnabled { get; }
     bool HasOidcLogin { get; }
     bool HasLocalLogin { get; }
@@ -40,7 +41,19 @@ public class ApplicationUserResponse(
     public bool SimpleFinAccessToken { get; set; } = user.SimpleFinAccessToken != string.Empty;
     public bool LunchFlowApiKey { get; set; } = user.LunchFlowApiKey != string.Empty;
     public DateTime LastSync { get; set; } = user.LastSync;
+    public DateTime NewTransactionsSince { get; set; } = user.NewTransactionsSince;
     public bool TwoFactorEnabled { get; set; } = user.TwoFactorEnabled;
     public bool HasOidcLogin { get; set; } = hasOidcLogin;
     public bool HasLocalLogin { get; set; } = hasLocalLogin;
+}
+
+public interface IApplicationUserVisitResponse
+{
+    DateTime NewTransactionsSince { get; }
+}
+
+public class ApplicationUserVisitResponse(DateTime newTransactionsSince)
+    : IApplicationUserVisitResponse
+{
+    public DateTime NewTransactionsSince { get; set; } = newTransactionsSince;
 }

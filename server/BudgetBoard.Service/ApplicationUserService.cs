@@ -14,10 +14,18 @@ public class ApplicationUserService(
     ILogger<IApplicationUserService> logger,
     UserDataContext userDataContext,
     IStringLocalizer<ResponseStrings> responseLocalizer,
-    IStringLocalizer<LogStrings> logLocalizer
+    IStringLocalizer<LogStrings> logLocalizer,
+    INowProvider? nowProvider = null
 ) : IApplicationUserService
 {
     public const string OidcLoginProvider = "oidc";
+
+    /// <summary>
+    /// How long the user must be away before returning counts as a new visit.
+    /// </summary>
+    public static readonly TimeSpan VisitIdleTimeout = TimeSpan.FromMinutes(30);
+
+    private readonly INowProvider _nowProvider = nowProvider ?? new NowProvider();
 
     /// <inheritdoc />
     public async Task<IApplicationUserResponse> ReadApplicationUserAsync(
@@ -44,6 +52,42 @@ public class ApplicationUserService(
 
         userData.LastSync = request.LastSync;
         await userDataContext.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<IApplicationUserVisitResponse> RecordVisitAsync(Guid userGuid)
+    {
+        var userData = await GetCurrentUserAsync(userGuid);
+        var now = _nowProvider.UtcNow;
+
+        if (userData.LastActive == DateTime.MinValue)
+        {
+            // First visit since this feature was added: nothing is new yet.
+            userData.NewTransactionsSince = now;
+        }
+        else if (now - userData.LastActive > VisitIdleTimeout)
+        {
+            // A new visit: anything synced after the user was last here is new.
+            userData.NewTransactionsSince = userData.LastActive;
+        }
+
+        userData.LastActive = now;
+        await userDataContext.SaveChangesAsync();
+
+        return new ApplicationUserVisitResponse(userData.NewTransactionsSince);
+    }
+
+    /// <inheritdoc />
+    public async Task<IApplicationUserVisitResponse> MarkTransactionsSeenAsync(Guid userGuid)
+    {
+        var userData = await GetCurrentUserAsync(userGuid);
+        var now = _nowProvider.UtcNow;
+
+        userData.NewTransactionsSince = now;
+        userData.LastActive = now;
+        await userDataContext.SaveChangesAsync();
+
+        return new ApplicationUserVisitResponse(userData.NewTransactionsSince);
     }
 
     public async Task ConnectOidcLoginAsync(

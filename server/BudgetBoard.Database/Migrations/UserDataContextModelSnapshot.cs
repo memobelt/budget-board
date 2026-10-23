@@ -133,6 +133,9 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime>("LastActive")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("LastSync")
                         .HasColumnType("timestamp with time zone");
 
@@ -145,6 +148,9 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<string>("LunchFlowApiKey")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime>("NewTransactionsSince")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -757,6 +763,9 @@ namespace BudgetBoard.Database.Migrations
 
                     b.Property<string>("Category")
                         .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");

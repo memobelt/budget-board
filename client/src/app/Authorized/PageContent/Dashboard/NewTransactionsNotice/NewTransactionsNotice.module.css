@@ -1,0 +1,41 @@
+.root {
+  width: 100%;
+}
+
+.header {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.row {
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.merchant {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+}
+
+.account {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (max-width: 30rem) {
+  .account {
+    display: none;
+  }
+}

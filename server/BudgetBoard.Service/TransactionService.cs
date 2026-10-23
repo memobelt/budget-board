@@ -67,6 +67,7 @@ public class TransactionService(
             Source = request.Source ?? TransactionSource.Manual,
             AccountID = request.AccountID,
             Account = account,
+            Created = nowProvider.UtcNow,
         };
         await automaticTransactionCategorizerService.AutoCategorizeTransactionAsync(
             userData.Id,
@@ -143,6 +144,26 @@ public class TransactionService(
 
         return transactions
             .OrderByDescending(t => t.Date)
+            .Select(t => new TransactionResponse(t))
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ITransactionResponse>> ReadNewTransactionsAsync(Guid userGuid)
+    {
+        var userData = await GetCurrentUserAsync(userGuid);
+        var newSince = userData.NewTransactionsSince;
+
+        return userData
+            .Accounts.Where(a => a.HideTransactions is false)
+            .SelectMany(a => a.Transactions)
+            .Where(t =>
+                t.Deleted == null
+                && t.Source != TransactionSource.Manual
+                && t.Created > newSince
+            )
+            .OrderByDescending(t => t.Date)
+            .ThenByDescending(t => t.Created)
             .Select(t => new TransactionResponse(t))
             .ToList();
     }

@@ -20,6 +20,8 @@ export const simpleFinAccountQueryKey: string = "simpleFinAccounts";
 export const transactionCategoriesQueryKey: string = "transactionCategories";
 export const tagSuggestionsQueryKey: string = "tagSuggestions";
 export const transactionsQueryKey: string = "transactions";
+/** Nested under transactionsQueryKey so anything that refreshes transactions refreshes these too. */
+export const newTransactionsQueryKey: string = "new";
 export const transactionLinkCandidatesQueryKey: string =
   "transactionLinkCandidates";
 export const transactionImportJobQueryKey: string = "transactionImportJob";

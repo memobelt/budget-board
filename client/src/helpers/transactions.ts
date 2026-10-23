@@ -3,6 +3,7 @@ import { SortDirection } from "~/components/SortButton";
 import {
   Filters,
   ITransaction,
+  manualTransactionSource,
   uncategorizedTransactionCategory,
 } from "~/models/transaction";
 import { areStringsEqual } from "./utils";
@@ -175,12 +176,14 @@ export const getTransactionDisplayItems = (
  * @param {ITransaction[]} transactions - Array of transaction objects.
  * @param {Filters} filters - Object containing account, category, date range, merchant name, amount range, and tag filters.
  * @param {ICategory[]} transactionCategories - Array of all categories, used to check for parent categories.
+ * @param {(transaction: ITransaction) => boolean} [isNewTransaction] - Tells whether a transaction was synced since the last visit; used by the "new only" filter.
  * @returns {ITransaction[]} The filtered array of transactions.
  */
 export const getFilteredTransactions = (
   transactions: ITransaction[],
   filters: Filters,
   transactionCategories: ICategory[],
+  isNewTransaction?: (transaction: ITransaction) => boolean,
 ): ITransaction[] => {
   // We don't want to include deleted transactions.
   let filteredTransactions = getVisibleTransactions(transactions);
@@ -241,7 +244,33 @@ export const getFilteredTransactions = (
       (transaction.tags ?? []).some((tag) => filterTags.has(normalizeTag(tag))),
     );
   }
+  if (filters.newOnly && isNewTransaction) {
+    filteredTransactions = filteredTransactions.filter(isNewTransaction);
+  }
   return filteredTransactions;
+};
+
+/**
+ * Tells whether a transaction was synced from a bank after the given time.
+ * Manually entered and deleted transactions are never new.
+ *
+ * @param {ITransaction} transaction - The transaction to check.
+ * @param {Date | null} newSince - Transactions synced after this time are new; null means nothing is new.
+ * @returns {boolean} True if the transaction is new.
+ */
+export const isTransactionNewSince = (
+  transaction: ITransaction,
+  newSince: Date | null,
+): boolean => {
+  if (newSince === null || !transaction.created) {
+    return false;
+  }
+
+  return (
+    transaction.deleted === null &&
+    !areStringsEqual(transaction.source, manualTransactionSource) &&
+    new Date(transaction.created).getTime() > newSince.getTime()
+  );
 };
 
 /**

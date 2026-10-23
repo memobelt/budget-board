@@ -8,7 +8,7 @@ import {
   MonthToolcards,
 } from "@teelur/budget-board-ui";
 import { useDisclosure } from "@mantine/hooks";
-import { FilterIcon } from "lucide-react";
+import { CheckCheckIcon, FilterIcon, SparklesIcon } from "lucide-react";
 import React from "react";
 import SortMenu from "./SortMenu/SortMenu";
 import { SortDirection } from "~/components/SortButton";
@@ -37,6 +37,7 @@ import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsPr
 import { SignDisplay } from "~/helpers/currency";
 import { CategoryTypes } from "~/models/category";
 import { areStringsEqual } from "~/helpers/utils";
+import { useNewTransactions } from "~/providers/NewTransactionsProvider/NewTransactionsProvider";
 
 interface TransactionsHeaderProps {
   sort: Sorts;
@@ -55,8 +56,19 @@ const TransactionsHeader = (
 ): React.ReactNode => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
-  const { transactionFilters, isFiltersPanelOpen, toggleFiltersPanel } =
-    useTransactionFilters();
+  const {
+    transactionFilters,
+    setTransactionFilters,
+    isFiltersPanelOpen,
+    toggleFiltersPanel,
+  } = useTransactionFilters();
+  const {
+    newTransactions,
+    isNewTransactionsPending,
+    isNewTransaction,
+    markAllSeen,
+    isMarkingSeen,
+  } = useNewTransactions();
   const { allTransactionCategories, getCategoryType } =
     useTransactionCategories();
   const { dayjs, dayjsLocale, intlLocale } = useLocale();
@@ -103,6 +115,7 @@ const TransactionsHeader = (
       props.transactions,
       transactionFilters ?? new Filters(),
       allTransactionCategories,
+      isNewTransaction,
     ).forEach((transaction) => {
       if (
         transaction.deleted !== null ||
@@ -135,6 +148,7 @@ const TransactionsHeader = (
     allTransactionCategories,
     getCategoryType,
     dayjs,
+    isNewTransaction,
   ]);
 
   const getMonthStatus = React.useCallback(
@@ -174,6 +188,7 @@ const TransactionsHeader = (
       props.transactions,
       transactionFilters ?? new Filters(),
       allTransactionCategories,
+      isNewTransaction,
     );
 
     const sortedFilteredTransactions = sortTransactions(
@@ -190,7 +205,66 @@ const TransactionsHeader = (
     allTransactionCategories,
     props.sort,
     props.sortDirection,
+    isNewTransaction,
   ]);
+
+  // New transactions can be from any month (a bank can post a purchase from
+  // last month today), so when the "new only" filter turns on, select the
+  // months that hold them.
+  const hasSelectedNewMonthsRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!transactionFilters.newOnly) {
+      hasSelectedNewMonthsRef.current = false;
+      return;
+    }
+
+    if (
+      hasSelectedNewMonthsRef.current ||
+      isNewTransactionsPending ||
+      newTransactions.length === 0
+    ) {
+      return;
+    }
+
+    hasSelectedNewMonthsRef.current = true;
+
+    const months = [
+      ...new Set(
+        newTransactions.map((transaction) =>
+          dayjs(transaction.date).startOf("month").valueOf(),
+        ),
+      ),
+    ]
+      .sort((a, b) => a - b)
+      .map((time) => new Date(time));
+
+    props.setSelectedMonths(months);
+    if (months.length > 1) {
+      open();
+    }
+  }, [
+    transactionFilters.newOnly,
+    newTransactions,
+    isNewTransactionsPending,
+    props.setSelectedMonths,
+    open,
+    dayjs,
+  ]);
+
+  const toggleNewOnly = () => {
+    const newFilters = new Filters(transactionFilters);
+    newFilters.newOnly = !transactionFilters.newOnly;
+    setTransactionFilters(newFilters);
+  };
+
+  const onMarkAllSeen = async () => {
+    await markAllSeen();
+    if (transactionFilters.newOnly) {
+      const newFilters = new Filters(transactionFilters);
+      newFilters.newOnly = false;
+      setTransactionFilters(newFilters);
+    }
+  };
 
   return (
     <Stack className={classes.root}>
@@ -228,6 +302,31 @@ const TransactionsHeader = (
           </Stack>
         </Group>
         <Group className={classes.buttonGroup}>
+          {(newTransactions.length > 0 || transactionFilters.newOnly) && (
+            <Button
+              variant="filled"
+              color="success"
+              size="xs"
+              selected={transactionFilters.newOnly}
+              rightSection={<SparklesIcon size="1rem" />}
+              onClick={toggleNewOnly}
+              title={t("new_transaction_tooltip")}
+            >
+              {t("new_transactions_filter", { count: newTransactions.length })}
+            </Button>
+          )}
+          {transactionFilters.newOnly && newTransactions.length > 0 && (
+            <Button
+              variant="ghost"
+              color="success"
+              size="xs"
+              rightSection={<CheckCheckIcon size="1rem" />}
+              onClick={onMarkAllSeen}
+              loading={isMarkingSeen}
+            >
+              {t("mark_all_as_seen")}
+            </Button>
+          )}
           {/* Importing and exporting files aren't useful on a phone. */}
           {!isMobile && <ImportTransactionsModal />}
           {!isMobile && <ExportTransactionsModal />}

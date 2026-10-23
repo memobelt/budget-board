@@ -26,6 +26,17 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime LastSync { get; set; } = DateTime.MinValue;
 
     /// <summary>
+    /// The last date and time (UTC) the user was active in the app.
+    /// </summary>
+    public DateTime LastActive { get; set; } = DateTime.MinValue;
+
+    /// <summary>
+    /// Transactions synced after this date and time (UTC) are shown as new.
+    /// Set to the end of the user's previous visit when a new visit starts.
+    /// </summary>
+    public DateTime NewTransactionsSince { get; set; } = DateTime.MinValue;
+
+    /// <summary>
     /// Collection of financial accounts owned by the user.
     /// </summary>
     public ICollection<Account> Accounts { get; set; } = [];

@@ -16,6 +16,7 @@ import { ITransaction, Filters } from "~/models/transaction";
 import { getFilteredTransactions } from "~/helpers/transactions";
 import { useInstitutionsQuery } from "~/hooks/queries/useInstitutionsQuery";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { useNewTransactions } from "~/providers/NewTransactionsProvider/NewTransactionsProvider";
 
 const escapeCsvValue = (value: string): string =>
   `"${value.replace(/"/g, '""')}"`;
@@ -85,6 +86,7 @@ const ExportTransactionsModal = (): React.ReactNode => {
 
   const { t } = useTranslation();
   const { transactionFilters } = useTransactionFilters();
+  const { isNewTransaction } = useNewTransactions();
   const { allTransactionCategories: transactionCategories } =
     useTransactionCategories();
   const institutionsQuery = useInstitutionsQuery();
@@ -115,8 +117,14 @@ const ExportTransactionsModal = (): React.ReactNode => {
         transactionsQuery.data ?? [],
         transactionFilters ?? new Filters(),
         transactionCategories,
+        isNewTransaction,
       ),
-    [transactionsQuery.data, transactionFilters, transactionCategories],
+    [
+      transactionsQuery.data,
+      transactionFilters,
+      transactionCategories,
+      isNewTransaction,
+    ],
   );
 
   const handleFieldsChange = (newSelected: string[]) => {

@@ -36,6 +36,15 @@ public interface ITransactionService
     );
 
     /// <summary>
+    /// Retrieves the synced transactions that arrived after the user's previous visit
+    /// (see <see cref="BudgetBoard.Database.Models.ApplicationUser.NewTransactionsSince"/>).
+    /// Manually entered, deleted and hidden-account transactions are left out.
+    /// </summary>
+    /// <param name="userGuid">The unique identifier of the user.</param>
+    /// <returns>The new transactions, most recent first.</returns>
+    Task<IReadOnlyList<ITransactionResponse>> ReadNewTransactionsAsync(Guid userGuid);
+
+    /// <summary>
     /// Retrieves transactions for the specified user.
     /// </summary>
     /// <param name="userGuid">The unique identifier of the user.</param>
