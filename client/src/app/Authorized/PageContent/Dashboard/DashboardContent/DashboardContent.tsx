@@ -22,6 +22,7 @@ import {
 } from "~/shared/dashboardGrid";
 import SpendingTrendsWidget from "../../../../../components/ui/widgets/SpendingTrendsWidget/SpendingTrendsWidget";
 import UncategorizedTransactionsWidget from "~/components/ui/widgets/UncategorizedTransactionsWidget/UncategorizedTransactionsWidget";
+import NewTransactionsWidget from "~/components/ui/widgets/NewTransactionsWidget/NewTransactionsWidget";
 import MetricWidget from "~/components/ui/widgets/MetricWidget/MetricWidget";
 import FlowsWidget from "~/components/ui/widgets/FlowsWidget/FlowsWidget";
 import { useTranslation } from "react-i18next";
@@ -140,6 +141,8 @@ const DashboardContent = ({
         );
       case "UncategorizedTransactions":
         return <UncategorizedTransactionsWidget />;
+      case "NewTransactions":
+        return <NewTransactionsWidget />;
       case "Metric":
         return (
           <MetricWidget

@@ -196,6 +196,32 @@ public class WidgetSettingsServiceTests
         settings.SmY.Should().Be(0);
         settings.SmH.Should().Be(5);
     }
+
+    [Fact]
+    public async Task CreateWidgetSettingsAsync_WhenNewTransactionsWidget_ShouldUseItsLayout()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var service = CreateService(helper);
+
+        var request = new WidgetSettingsCreateRequest
+        {
+            WidgetType = WidgetTypes.NewTransactions,
+        };
+
+        // Act
+        await service.CreateWidgetSettingsAsync(helper.demoUser.Id, request);
+
+        // Assert
+        var settings = helper.UserDataContext.WidgetSettings.Single(ws =>
+            ws.UserID == helper.demoUser.Id
+        );
+
+        settings.WidgetType.Should().Be(WidgetTypes.NewTransactions);
+        settings.LgW.Should().Be(8);
+        settings.LgH.Should().Be(11);
+        settings.SmH.Should().Be(11);
+    }
     #endregion
 
     #region ReadWidgetSettingsAsync
