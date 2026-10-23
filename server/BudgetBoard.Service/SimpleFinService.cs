@@ -674,6 +674,7 @@ public class SimpleFinService(
         var receivedCount = transactionsData.Count();
         var createdCount = 0;
         var existingCount = 0;
+        var matchedCount = 0;
 
         foreach (var transactionData in transactionsToSync)
         {
@@ -705,6 +706,24 @@ public class SimpleFinService(
                 AccountID = userAccount.ID,
             };
 
+            // If the user already entered this transaction by hand, link it instead of adding a duplicate.
+            var manualMatch = ManualTransactionMatcher.FindMatch(
+                userTransactions,
+                newTransaction.Amount,
+                newTransaction.Date
+            );
+            if (manualMatch != null)
+            {
+                ManualTransactionMatcher.Link(
+                    manualMatch,
+                    transactionData.Id,
+                    TransactionSource.SimpleFIN,
+                    transactionData.Description
+                );
+                matchedCount++;
+                continue;
+            }
+
             await transactionService.CreateTransactionAsync(userData, newTransaction);
             createdCount++;
 
@@ -722,14 +741,19 @@ public class SimpleFinService(
             );
         }
 
+        if (matchedCount > 0)
+        {
+            await userDataContext.SaveChangesAsync();
+        }
+
         logger.LogTransactionSync(
             logLocalizer[
                 "SimpleFinTransactionSyncSummaryLog",
                 userAccount.Name,
                 receivedCount,
                 createdCount,
-                existingCount,
-                receivedCount - createdCount - existingCount
+                existingCount + matchedCount,
+                receivedCount - createdCount - existingCount - matchedCount
             ]
         );
 
