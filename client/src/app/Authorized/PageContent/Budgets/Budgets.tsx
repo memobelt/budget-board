@@ -1,4 +1,5 @@
 import { Stack } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import React from "react";
 import BudgetsToolbar from "./BudgetsToolbar/BudgetsToolbar";
 import { buildTimeToMonthlyTotalsMap } from "~/helpers/transactions";
@@ -11,6 +12,13 @@ import { isTransfer } from "~/helpers/budgets";
 
 const Budgets = (): React.ReactNode => {
   const { dayjs } = useLocale();
+
+  // On wide screens the summary sits beside the budgets, so the page's buttons
+  // move into a slot above it, level with the Income heading.
+  const isWide = useMediaQuery("(min-width: 62em)");
+  const [actionsSlot, setActionsSlot] = React.useState<HTMLDivElement | null>(
+    null,
+  );
 
   const [selectedDates, setSelectedDates] = React.useState<Date[]>([
     dayjs().startOf("month").toDate(),
@@ -57,6 +65,7 @@ const Budgets = (): React.ReactNode => {
           selectedDates.length === 1
         }
         isPending={budgetsQuery.isPending}
+        actionsTarget={isWide ? actionsSlot : null}
       />
       <BudgetsContent
         budgets={budgetsQuery.data}
@@ -67,6 +76,7 @@ const Budgets = (): React.ReactNode => {
         }
         isPending={budgetsQuery.isPending}
         isTransactionsPending={transactionsQuery.isPending}
+        actionsSlotRef={isWide ? setActionsSlot : undefined}
       />
     </Stack>
   );
