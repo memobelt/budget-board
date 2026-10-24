@@ -71,6 +71,35 @@ export const formatBillAccountLabel = (
   return accountName ?? lastFour;
 };
 
+/**
+ * Orders bills that share a due date: by the account's last four digits, or
+ * by the account name when a bill has no digits entered. Bills with neither
+ * come last, and the bill name breaks any remaining ties.
+ */
+export const compareBillsByAccount = (
+  a: { bill: IBillResponse; accountName: string | null },
+  b: { bill: IBillResponse; accountName: string | null },
+): number => {
+  const keyA = a.bill.accountLastFour ?? a.accountName ?? "";
+  const keyB = b.bill.accountLastFour ?? b.accountName ?? "";
+
+  if (keyA === "" || keyB === "") {
+    if (keyA !== keyB) {
+      return keyA === "" ? 1 : -1;
+    }
+  } else {
+    const byAccount = keyA.localeCompare(keyB, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (byAccount !== 0) {
+      return byAccount;
+    }
+  }
+
+  return a.bill.name.localeCompare(b.bill.name);
+};
+
 export const buildBillUpdateRequest = (
   bill: IBillResponse,
   changes: Partial<IBillUpdateRequest> = {},

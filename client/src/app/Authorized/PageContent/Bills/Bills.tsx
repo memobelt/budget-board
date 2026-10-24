@@ -9,6 +9,7 @@ import {
   billDateFormat,
   BillMonthStatus,
   buildBillUpdateRequest,
+  compareBillsByAccount,
   getBillAmountDue,
   getBillMonthEntry,
 } from "~/helpers/bills";
@@ -78,7 +79,7 @@ const Bills = (): React.ReactNode => {
       .sort(
         (a, b) =>
           a.entry.dueDate.valueOf() - b.entry.dueDate.valueOf() ||
-          a.bill.name.localeCompare(b.bill.name),
+          compareBillsByAccount(a, b),
       );
     // today and month are compared by their keys so the list only recomputes when they change.
   }, [billsQuery.data, accountsQuery.data, todayKey, monthKey]);
