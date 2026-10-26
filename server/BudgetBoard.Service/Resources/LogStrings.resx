@@ -370,6 +370,12 @@
     <data name="SimpleFinDataRequestErrorLog" xml:space="preserve">
         <value>Error requesting SimpleFIN account data: {0}</value>
     </data>
+    <data name="SimpleFinUnexpectedStatusLog" xml:space="preserve">
+        <value>SimpleFIN returned status {0} when requesting account data.</value>
+    </data>
+    <data name="SimpleFinConnectionStatusSaveErrorLog" xml:space="preserve">
+        <value>Unable to save the SimpleFIN connection status: {0}</value>
+    </data>
     <data name="SimpleFinDataRetrievalErrorLog" xml:space="preserve">
         <value>Attempt to sync SimpleFIN data was unsuccessful.</value>
     </data>

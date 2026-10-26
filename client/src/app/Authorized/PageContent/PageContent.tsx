@@ -6,6 +6,7 @@ import { getProjectEnvVariables } from "~/shared/projectEnvVariables";
 import { useTranslation } from "react-i18next";
 import { TriangleAlert } from "lucide-react";
 import { Alert } from "@teelur/budget-board-ui";
+import SimpleFinConnectionAlert from "./SimpleFinConnectionAlert/SimpleFinConnectionAlert";
 
 const Dashboard = lazy(() => import("./Dashboard/Dashboard"));
 const Accounts = lazy(() => import("./Accounts/Accounts"));
@@ -118,6 +119,7 @@ const PageContent = (): React.ReactNode => {
             {t("demo_mode_banner")}
           </Alert>
         )}
+        <SimpleFinConnectionAlert />
         <Suspense fallback={suspenseFallback}>
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />

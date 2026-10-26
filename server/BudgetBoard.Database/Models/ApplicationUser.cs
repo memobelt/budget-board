@@ -21,6 +21,17 @@ public class ApplicationUser : IdentityUser<Guid>
     public string LunchFlowApiKey { get; set; } = string.Empty;
 
     /// <summary>
+    /// The most recent SimpleFIN connection problem, or null when the last connection succeeded.
+    /// Multiple problems are separated by new lines.
+    /// </summary>
+    public string? SimpleFinConnectionError { get; set; } = null;
+
+    /// <summary>
+    /// When (UTC) the current SimpleFIN connection problem was first seen.
+    /// </summary>
+    public DateTime? SimpleFinConnectionErrorDate { get; set; } = null;
+
+    /// <summary>
     /// The last date and time the user's data was synchronized.
     /// </summary>
     public DateTime LastSync { get; set; } = DateTime.MinValue;
