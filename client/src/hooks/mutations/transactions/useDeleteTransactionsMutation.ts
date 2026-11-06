@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import {
   accountsQueryKey,
   balancesQueryKey,
+  goalsQueryKey,
   institutionsQueryKey,
   tagSuggestionsQueryKey,
   transactionsQueryKey,
@@ -29,6 +30,8 @@ export const useDeleteTransactionsMutation = () => {
         queryKey: [tagSuggestionsQueryKey],
       });
       await queryClient.invalidateQueries({ queryKey: [balancesQueryKey] });
+      // Transactions can count towards goals, so goal progress may have changed.
+      await queryClient.invalidateQueries({ queryKey: [goalsQueryKey] });
       await queryClient.invalidateQueries({ queryKey: [accountsQueryKey] });
       await queryClient.invalidateQueries({ queryKey: [institutionsQueryKey] });
     },

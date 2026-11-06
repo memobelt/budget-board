@@ -804,6 +804,9 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<DateTime?>("Deleted")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("GoalID")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("MerchantName")
                         .HasColumnType("text");
 
@@ -827,6 +830,8 @@ namespace BudgetBoard.Database.Migrations
                     b.HasKey("ID");
 
                     b.HasIndex("AccountID");
+
+                    b.HasIndex("GoalID");
 
                     b.HasIndex("RecurringRuleID");
 
@@ -1479,12 +1484,19 @@ namespace BudgetBoard.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BudgetBoard.Database.Models.Goal", "Goal")
+                        .WithMany("Transactions")
+                        .HasForeignKey("GoalID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("BudgetBoard.Database.Models.RecurringRule", "RecurringRule")
                         .WithMany("Transactions")
                         .HasForeignKey("RecurringRuleID")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Account");
+
+                    b.Navigation("Goal");
 
                     b.Navigation("RecurringRule");
                 });
@@ -1711,6 +1723,8 @@ namespace BudgetBoard.Database.Migrations
             modelBuilder.Entity("BudgetBoard.Database.Models.Goal", b =>
                 {
                     b.Navigation("Contributions");
+
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("BudgetBoard.Database.Models.Institution", b =>

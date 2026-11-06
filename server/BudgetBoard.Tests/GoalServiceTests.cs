@@ -2101,6 +2101,95 @@ public class GoalServiceTests
     }
 
     [Fact]
+    public async Task ReadGoalsAsync_WhenManualGoalHasTransactions_ShouldCountTheirSize()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var fakeNowProvider = CreateNowProviderMock(new DateTime(2026, 6, 15));
+        var goalService = CreateGoalService(helper, fakeNowProvider);
+        var today = fakeNowProvider.Today;
+
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        account.Name = "Checking";
+        var transactionFaker = new TransactionFaker([account.ID]);
+        var transferOut = transactionFaker.Generate();
+        transferOut.Amount = -200;
+        transferOut.Date = today;
+        var gift = transactionFaker.Generate();
+        gift.Amount = 50;
+        gift.Date = today.AddMonths(-1);
+        var deleted = transactionFaker.Generate();
+        deleted.Amount = -1000;
+        deleted.Date = today;
+        deleted.Deleted = DateTime.UtcNow;
+        account.Transactions = [transferOut, gift, deleted];
+        helper.UserDataContext.Accounts.Add(account);
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        goal.Contributions.Add(
+            new GoalContribution
+            {
+                Amount = 100,
+                Date = today,
+                GoalID = goal.ID,
+            }
+        );
+        helper.UserDataContext.Goals.Add(goal);
+        transferOut.GoalID = goal.ID;
+        gift.GoalID = goal.ID;
+        deleted.GoalID = goal.ID;
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var result = (await goalService.ReadGoalsAsync(helper.demoUser.Id, false)).Single();
+
+        // Assert
+        result.CurrentAmount.Should().Be(350);
+        result.PercentComplete.Should().Be(35);
+        result.MonthlyContributionProgress.Should().Be(300);
+        result.Transactions.Should().HaveCount(2);
+        var first = result.Transactions.First();
+        first.ID.Should().Be(transferOut.ID);
+        first.Amount.Should().Be(-200);
+        first.CountedAmount.Should().Be(200);
+        first.AccountName.Should().Be("Checking");
+    }
+
+    [Fact]
+    public async Task DeleteGoalAsync_WhenManualGoalHasTransactions_ShouldKeepTransactions()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        var transaction = new TransactionFaker([account.ID]).Generate();
+        account.Transactions = [transaction];
+        helper.UserDataContext.Accounts.Add(account);
+
+        var goal = new GoalFaker(helper.demoUser.Id).Generate();
+        goal.IsManual = true;
+        helper.UserDataContext.Goals.Add(goal);
+        transaction.GoalID = goal.ID;
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await goalService.DeleteGoalAsync(helper.demoUser.Id, goal.ID);
+
+        // Assert
+        helper.UserDataContext.Goals.Should().BeEmpty();
+        helper.UserDataContext.Transactions.Single().GoalID.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CompleteEligibleGoalsAsync_WhenManualGoalReachesTarget_ShouldComplete()
     {
         // Arrange

@@ -347,12 +347,14 @@ public class GoalService(
             users =>
                 users
                     .Include(u => u.Goals)
-                        .ThenInclude((g) => g.Accounts)
-                            .ThenInclude((a) => a.Transactions)
+                    .ThenInclude((g) => g.Accounts)
+                    .ThenInclude((a) => a.Transactions)
                     .Include(u => u.Goals)
-                        .ThenInclude(g => g.Contributions)
+                    .ThenInclude(g => g.Contributions)
+                    .Include(u => u.Goals)
+                    .ThenInclude(g => g.Transactions)
                     .Include(u => u.Accounts)
-                        .ThenInclude(a => a.Balances)
+                    .ThenInclude(a => a.Balances)
         );
     }
 
@@ -553,7 +555,8 @@ public class GoalService(
     {
         if (goal.IsManual)
         {
-            return goal.Contributions.Sum(c => c.Amount);
+            return goal.Contributions.Sum(c => c.Amount)
+                + GetCountedTransactions(goal).Sum(GetCountedTransactionAmount);
         }
 
         return goal.Accounts.Sum(a =>
@@ -561,15 +564,31 @@ public class GoalService(
         );
     }
 
+    /// <summary>
+    /// Transactions the user chose to count towards a manual goal, excluding deleted ones.
+    /// </summary>
+    private static IEnumerable<Transaction> GetCountedTransactions(Goal goal) =>
+        goal.Transactions.Where(t => t.Deleted == null);
+
+    /// <summary>
+    /// A transaction counts towards a goal by its size, regardless of sign: moving money out of
+    /// checking into savings (negative) and receiving money set aside for the goal (positive)
+    /// both add to the goal.
+    /// </summary>
+    private static decimal GetCountedTransactionAmount(Transaction transaction) =>
+        Math.Abs(transaction.Amount);
+
     private decimal GetGoalMonthlyContributionProgress(Goal goal)
     {
         if (goal.IsManual)
         {
-            return goal
-                .Contributions.Where(c =>
-                    c.Date.Year == nowProvider.Today.Year && c.Date.Month == nowProvider.Today.Month
-                )
-                .Sum(c => c.Amount);
+            bool IsThisMonth(DateOnly date) =>
+                date.Year == nowProvider.Today.Year && date.Month == nowProvider.Today.Month;
+
+            return goal.Contributions.Where(c => IsThisMonth(c.Date)).Sum(c => c.Amount)
+                + GetCountedTransactions(goal)
+                    .Where(t => IsThisMonth(t.Date))
+                    .Sum(GetCountedTransactionAmount);
         }
 
         return GetTransactionsMonthlyProgress(goal.Accounts.SelectMany(a => a.Transactions));

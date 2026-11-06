@@ -391,6 +391,9 @@
   <data name="TransactionNotFoundError" xml:space="preserve">
         <value>Transaksi yang anda coba akses tidak ditemukan.</value>
   </data>
+  <data name="TransactionGoalNotManualError" xml:space="preserve">
+        <value>Transaksi hanya dapat dihitung untuk tujuan yang tidak ditautkan ke akun.</value>
+  </data>
   <data name="TransactionSplitInvalidAmountError" xml:space="preserve">
         <value>Nominal pemisahan tidak boleh melebihi total transaksi.</value>
   </data>

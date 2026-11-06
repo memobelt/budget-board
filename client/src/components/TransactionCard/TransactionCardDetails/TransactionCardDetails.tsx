@@ -5,6 +5,7 @@ import React from "react";
 import { Flex, Group, Stack } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Badge, BodyText } from "@teelur/budget-board-ui";
+import { useGoalsQuery } from "~/hooks/queries/useGoalsQuery";
 
 interface TransactionCardDetailsProps {
   transaction: ITransaction;
@@ -15,6 +16,13 @@ const TransactionCardDetails = ({
 }: TransactionCardDetailsProps): React.ReactNode => {
   const { t } = useTranslation();
   const notes = transaction.notes.trim();
+  const goalsQuery = useGoalsQuery({
+    includeInterest: false,
+    enabled: transaction.goalID !== null,
+  });
+  const goal = transaction.goalID
+    ? goalsQuery.data?.find((g) => g.id === transaction.goalID)
+    : undefined;
 
   return (
     <Flex
@@ -64,6 +72,16 @@ const TransactionCardDetails = ({
           </BodyText>
         )}
       </Stack>
+      {transaction.goalID && (
+        <Stack gap={0}>
+          <BodyText tone="secondary" size="xs">
+            {t("goal")}
+          </BodyText>
+          <BodyText tone="primary" size="sm" className={classes.value}>
+            {goal?.name ?? "…"}
+          </BodyText>
+        </Stack>
+      )}
     </Flex>
   );
 };

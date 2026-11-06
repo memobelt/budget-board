@@ -14,6 +14,7 @@ import {
   CategorySelect,
   DateInput,
   NumberInput,
+  Select,
   TagsInput,
   Textarea,
   TextInput,
@@ -38,6 +39,7 @@ import { useUpdateTransactionsMutation } from "~/hooks/mutations/transactions/us
 import { useDeleteTransactionsMutation } from "~/hooks/mutations/transactions/useDeleteTransactionsMutation";
 import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsProvider";
 import { useTagSuggestionsQuery } from "~/hooks/queries/useTagSuggestionsQuery";
+import { useGoalsQuery } from "~/hooks/queries/useGoalsQuery";
 
 interface BulkActionBarProps {
   selectedIds: Set<string>;
@@ -55,6 +57,7 @@ const FIELDS = {
   amount: "amount",
   notes: "notes",
   tags: "tags",
+  goal: "goal",
 } as const;
 
 const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
@@ -70,6 +73,7 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
   const isMobile = useIsMobile();
   const accountsQuery = useAccountsQuery();
   const tagSuggestionsQuery = useTagSuggestionsQuery();
+  const goalsQuery = useGoalsQuery({ includeInterest: false });
   const updateTransactionsMutation = useUpdateTransactionsMutation();
   const deleteTransactionsMutation = useDeleteTransactionsMutation();
 
@@ -118,6 +122,7 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
   const [amountValue, setAmountValue] = React.useState<number | string>("");
   const [notesValue, setNotesValue] = React.useState("");
   const [tagsValue, setTagsValue] = React.useState<string[]>([]);
+  const [goalValue, setGoalValue] = React.useState<string | null>(null);
   const [touched, setTouched] = React.useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
@@ -131,6 +136,7 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
     setAmountValue("");
     setNotesValue("");
     setTagsValue([]);
+    setGoalValue(null);
     setTouched(new Set());
     setShowDeleteConfirm(false);
   };
@@ -163,11 +169,29 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
       setAmountValue(singleSelected.amount);
       setNotesValue(singleSelected.notes ?? "");
       setTagsValue(getUniqueTags(singleSelected.tags ?? []));
+      setGoalValue(singleSelected.goalID ?? null);
       setTouched(new Set());
     } else {
       resetFields();
     }
   }, [singleSelected?.id]);
+
+  // Only goals that are not linked to accounts can have transactions counted towards them.
+  // Completed goals are hidden unless a selected transaction already counts towards one.
+  const goalOptions = React.useMemo(() => {
+    const selectedGoalIds = new Set(
+      selectedTransactions
+        .map((transaction) => transaction.goalID)
+        .filter((id): id is string => !!id),
+    );
+    return (goalsQuery.data ?? [])
+      .filter(
+        (goal) =>
+          goal.isManual &&
+          (goal.completed === null || selectedGoalIds.has(goal.id)),
+      )
+      .map((goal) => ({ value: goal.id, label: goal.name }));
+  }, [goalsQuery.data, selectedTransactions]);
 
   const handleApply = () => {
     const requests: ITransactionUpdateRequest[] = selectedTransactions.map(
@@ -194,6 +218,9 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
         }
         if (touched.has(FIELDS.notes)) {
           request.notes = notesValue;
+        }
+        if (touched.has(FIELDS.goal)) {
+          request.goalID = goalValue;
         }
         if (touched.has(FIELDS.tags)) {
           Object.assign(
@@ -400,6 +427,21 @@ const BulkActionBar = (props: BulkActionBarProps): React.ReactNode => {
                 flex="1 1 220px"
                 loading={tagSuggestionsQuery.isPending}
               />
+              {goalOptions.length > 0 && (
+                <Select
+                  label={t("goal")}
+                  placeholder={t("count_towards_a_goal")}
+                  data={goalOptions}
+                  value={goalValue}
+                  onChange={(value) => {
+                    setGoalValue(value);
+                    touch(FIELDS.goal);
+                  }}
+                  clearable
+                  comboboxProps={{ withinPortal: true }}
+                  w={200}
+                />
+              )}
 
               <Group
                 gap="0.5rem"

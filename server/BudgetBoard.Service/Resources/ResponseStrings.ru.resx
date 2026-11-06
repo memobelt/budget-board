@@ -373,6 +373,9 @@
   <data name="TransactionNotFoundError" xml:space="preserve">
         <value>The transaction you are trying to access does not exist.</value>
   </data>
+  <data name="TransactionGoalNotManualError" xml:space="preserve">
+        <value>Транзакции можно засчитывать только в цели, не связанные со счетами.</value>
+  </data>
   <data name="TransactionSplitInvalidAmountError" xml:space="preserve">
         <value>The split amount must be less than the transaction amount.</value>
   </data>

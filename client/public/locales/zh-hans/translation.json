@@ -103,6 +103,7 @@
   "contributions": "存入记录",
   "copy_key": "复制密钥",
   "copy_recovery_codes": "复制恢复代码",
+  "count_towards_a_goal": "计入目标",
   "create_account": "创建账号",
   "create_goal": "设定目标",
   "create_password": "设置密码",
@@ -163,6 +164,7 @@
   "french": "法语",
   "generate_new_recovery_codes": "生成新的恢复代码",
   "german": "德语",
+  "goal": "目标",
   "goal_completed_date_styled": "<0>已完成：</0> <1>{{date}}</1>",
   "goal_created_successfully": "目标成功设置。",
   "goal_details": "目标详细信息",
@@ -185,5 +187,7 @@
   "no_target_date": "无目标日期",
   "preferred_language_description": "翻译可能不准确或不完整。如果您发现任何问题，请考虑在 <0>Weblate</0> 上协助更正。",
   "save_without_linking_an_account": "不关联账户的储蓄目标",
+  "stop_counting_towards_goal": "不再计入此目标",
+  "transaction": "交易",
   "x_this_month": "<1>本月</1> <0/>"
 }

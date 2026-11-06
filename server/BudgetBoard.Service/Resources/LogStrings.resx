@@ -457,6 +457,9 @@
     <data name="TransactionNotFoundLog" xml:space="preserve">
         <value>Attempted to access a transaction that does not exist.</value>
     </data>
+    <data name="TransactionGoalNotManualLog" xml:space="preserve">
+        <value>Attempted to count a transaction towards a goal that is linked to accounts.</value>
+    </data>
     <data name="TransactionSplitInvalidAmountLog" xml:space="preserve">
         <value>Attempt to split transaction with amount less than or equal to the split amount.</value>
     </data>

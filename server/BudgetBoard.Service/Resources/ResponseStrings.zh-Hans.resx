@@ -376,6 +376,9 @@
   <data name="TransactionNotFoundError" xml:space="preserve">
         <value>您尝试访问的交易不存在。</value>
   </data>
+  <data name="TransactionGoalNotManualError" xml:space="preserve">
+        <value>交易只能计入未关联账户的目标。</value>
+  </data>
   <data name="TransactionSplitInvalidAmountError" xml:space="preserve">
         <value>拆分金额必须小于交易金额。</value>
   </data>

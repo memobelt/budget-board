@@ -56,7 +56,10 @@ const GoalDetails = (props: GoalDetailsProps): React.ReactNode => {
         >
           <Stack gap="0.5rem">
             <AddGoalContribution goalId={props.goal.id} showDate />
-            <GoalContributionsList contributions={props.goal.contributions} />
+            <GoalContributionsList
+              contributions={props.goal.contributions}
+              transactions={props.goal.transactions}
+            />
           </Stack>
         </CollapsibleCard>
       );

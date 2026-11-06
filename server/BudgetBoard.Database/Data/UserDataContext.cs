@@ -219,6 +219,10 @@ public class UserDataContext(DbContextOptions<UserDataContext> options)
                     .WithOne(e => e.Goal)
                     .HasForeignKey(e => e.GoalID)
                     .OnDelete(DeleteBehavior.Cascade);
+                g.HasMany(e => e.Transactions)
+                    .WithOne(e => e.Goal)
+                    .HasForeignKey(e => e.GoalID)
+                    .OnDelete(DeleteBehavior.SetNull);
 
                 g.ToTable("Goal");
             }

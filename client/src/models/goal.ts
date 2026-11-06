@@ -32,6 +32,16 @@ export interface IGoalUpdateRequest {
   monthlyContribution?: number | null;
 }
 
+export interface IGoalTransactionResponse {
+  id: string;
+  date: string;
+  amount: number;
+  /** How much the transaction adds to the goal (the size of its amount). */
+  countedAmount: number;
+  merchantName: string | null;
+  accountName: string;
+}
+
 export interface IGoalResponse {
   id: string;
   name: string;
@@ -49,6 +59,7 @@ export interface IGoalResponse {
   isManual: boolean;
   currentAmount: number;
   contributions: IGoalContributionResponse[];
+  transactions: IGoalTransactionResponse[];
   userID: string;
 }
 

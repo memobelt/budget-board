@@ -83,9 +83,13 @@
   "budget_warning_threshold": "Порог предупреждения о бюджете",
   "complete_date_optional_description": "Необязательно. Оставьте пустым, если срока нет.",
   "contributions": "Взносы",
+  "count_towards_a_goal": "Засчитать в цель",
+  "goal": "Цель",
   "no_contributions": "Взносов пока нет.",
   "no_target_date": "Без целевой даты",
   "save_without_linking_an_account": "Копить без привязки к счёту",
+  "stop_counting_towards_goal": "Больше не засчитывать в эту цель",
+  "transaction": "Транзакция",
   "x_of_y": "<0/> <1>из</1> <2/>",
   "x_of_y_this_month": "<0/> <1>из</1> <2/> <1> в этом месяце</1>",
   "x_this_month": "<0/> <1>в этом месяце</1>"
