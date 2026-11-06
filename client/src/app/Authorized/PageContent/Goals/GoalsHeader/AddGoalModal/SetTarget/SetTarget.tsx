@@ -47,10 +47,10 @@ const SetTarget = (props: SetTargetProps): React.ReactNode => {
     goalMonthlyContributionField.reset();
   }, [targetType]);
 
+  // The completion date is optional: leaving it blank creates an open-ended goal.
   const isTargetValid =
-    targetType === "completeDate"
-      ? goalCompleteDateField.getValue() !== null
-      : goalMonthlyContributionField.getValue() > 0;
+    targetType === "completeDate" ||
+    goalMonthlyContributionField.getValue() > 0;
 
   return (
     <Stack gap={"1rem"}>
@@ -72,6 +72,7 @@ const SetTarget = (props: SetTargetProps): React.ReactNode => {
         <DateInput
           label={t("complete_date")}
           placeholder={t("select_a_completion_date")}
+          description={t("complete_date_optional_description")}
           clearable
           {...goalCompleteDateField.getInputProps()}
           locale={dayjsLocale}
