@@ -7,6 +7,21 @@ export interface IGoalCreateRequest {
   applyExistingBalanceTowardsGoal: boolean;
   monthlyContribution: number | null;
   accountIds: string[];
+  isManual?: boolean;
+  startingAmount?: number | null;
+}
+
+export interface IGoalContributionCreateRequest {
+  goalID: string;
+  amount: number;
+  date?: string | null;
+}
+
+export interface IGoalContributionResponse {
+  id: string;
+  amount: number;
+  date: string;
+  goalID: string;
 }
 
 export interface IGoalUpdateRequest {
@@ -20,7 +35,7 @@ export interface IGoalUpdateRequest {
 export interface IGoalResponse {
   id: string;
   name: string;
-  completeDate: Date;
+  completeDate: Date | null;
   isCompleteDateEditable: boolean;
   amount: number;
   initialAmount: number;
@@ -31,6 +46,9 @@ export interface IGoalResponse {
   completed: Date | null;
   percentComplete: number;
   accounts: IAccountResponse[];
+  isManual: boolean;
+  currentAmount: number;
+  contributions: IGoalContributionResponse[];
   userID: string;
 }
 
@@ -38,6 +56,7 @@ export enum GoalType {
   None = "",
   SaveGoal = "saveGoal",
   PayGoal = "payGoal",
+  ManualGoal = "manualGoal",
 }
 
 export enum GoalCondition {

@@ -34,6 +34,7 @@
   "add_asset_type": "Добавить тип ассетов",
   "add_balance": "Добавить баланс",
   "add_category": "Добавить категорию",
+  "add_contribution": "Добавить взнос",
   "add_goal": "Добавить цель",
   "add_or_select_tags": "Добавьте или выберите теги",
   "add_rule": "Добавить правило",
@@ -45,6 +46,8 @@
   "all": "Всё",
   "all_children_will_also_be_deleted": "Все дети также будут удалены.",
   "amount": "Сумма",
+  "amount_already_saved": "Уже накоплено",
+  "amount_already_saved_description": "Будет записано как первый взнос. Оставьте 0, чтобы начать с нуля.",
   "amount_format": "Формат суммы",
   "amount_max": "Максимальная сумма",
   "amount_min": "Минимальная сумма",
@@ -78,6 +81,12 @@
   "budget_previous_month_no_budgets": "Для прошлых месяцев нет бюджетов.",
   "budget_summary": "Сводка бюджета",
   "budget_warning_threshold": "Порог предупреждения о бюджете",
+  "complete_date_optional_description": "Необязательно. Оставьте пустым, если срока нет.",
+  "contributions": "Взносы",
+  "no_contributions": "Взносов пока нет.",
+  "no_target_date": "Без целевой даты",
+  "save_without_linking_an_account": "Копить без привязки к счёту",
   "x_of_y": "<0/> <1>из</1> <2/>",
-  "x_of_y_this_month": "<0/> <1>из</1> <2/> <1> в этом месяце</1>"
+  "x_of_y_this_month": "<0/> <1>из</1> <2/> <1> в этом месяце</1>",
+  "x_this_month": "<0/> <1>в этом месяце</1>"
 }

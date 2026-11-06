@@ -1,0 +1,30 @@
+import { NotificationType, showNotification } from "~/helpers/notifications";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
+import { goalsQueryKey, translateAxiosError } from "~/helpers/requests";
+import { useAuth } from "~/providers/AuthProvider/AuthProvider";
+
+export const useDeleteGoalContributionMutation = () => {
+  const queryClient = useQueryClient();
+  const { request } = useAuth();
+
+  return useMutation({
+    mutationFn: async (contributionId: string) =>
+      await request({
+        url: "/api/goal/contribution",
+        method: "DELETE",
+        params: { contributionId },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [goalsQueryKey],
+      });
+    },
+    onError: (error: AxiosError) => {
+      showNotification({
+        type: NotificationType.Error,
+        message: translateAxiosError(error),
+      });
+    },
+  });
+};

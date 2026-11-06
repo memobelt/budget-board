@@ -211,6 +211,21 @@
   <data name="GoalNotFoundError" xml:space="preserve">
         <value>The goal you are trying to access does not exist.</value>
   </data>
+  <data name="GoalCreateManualInvalidAmountError" xml:space="preserve">
+        <value>手动目标的目标金额必须大于零。</value>
+  </data>
+  <data name="GoalCreateManualWithAccountsError" xml:space="preserve">
+        <value>手动目标不能关联账户。</value>
+  </data>
+  <data name="GoalContributionNotManualError" xml:space="preserve">
+        <value>只能向未关联账户的目标添加存入记录。</value>
+  </data>
+  <data name="GoalContributionZeroAmountError" xml:space="preserve">
+        <value>存入金额不能为零。</value>
+  </data>
+  <data name="GoalContributionNotFoundError" xml:space="preserve">
+        <value>您尝试访问的存入记录不存在。</value>
+  </data>
   <data name="GoalUpdateNoMonthlyContributionError" xml:space="preserve">
         <value>目标的每月存入金额必须大于 0。</value>
   </data>

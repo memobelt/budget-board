@@ -34,6 +34,7 @@
   "add_asset_type": "添加资产类型",
   "add_balance": "添加余额",
   "add_category": "添加分类",
+  "add_contribution": "添加存入",
   "add_goal": "添加目标",
   "add_rule": "添加规则",
   "add_value": "添加数值",
@@ -43,6 +44,8 @@
   "all": "全部",
   "all_children_will_also_be_deleted": "所有子项也将被删除。",
   "amount": "金额",
+  "amount_already_saved": "已存金额",
+  "amount_already_saved_description": "将记录为您的第一笔存入。保留为 0 表示从零开始。",
   "amount_format": "金额格式",
   "amount_max": "最大金额",
   "amount_min": "最小金额",
@@ -87,6 +90,7 @@
   "code_copied_to_clipboard": "代码已复制到剪贴板",
   "column_order": "栏目顺序",
   "complete_date": "完成日期",
+  "complete_date_optional_description": "可选。如果没有截止日期，请留空。",
   "completed_goals": "已完成的目标",
   "configure_details": "详细配置",
   "configure_transactions": "配置转账",
@@ -96,6 +100,7 @@
   "confirm_password": "确认密码",
   "confirm_reset_to_defaults": "确认重置",
   "connected": "已连接",
+  "contributions": "存入记录",
   "copy_key": "复制密钥",
   "copy_recovery_codes": "复制恢复代码",
   "create_account": "创建账号",
@@ -176,5 +181,9 @@
   "include_interest": "包括利息",
   "income": "收入",
   "income_trends": "收入趋势",
-  "preferred_language_description": "翻译可能不准确或不完整。如果您发现任何问题，请考虑在 <0>Weblate</0> 上协助更正。"
+  "no_contributions": "尚未记录任何存入。",
+  "no_target_date": "无目标日期",
+  "preferred_language_description": "翻译可能不准确或不完整。如果您发现任何问题，请考虑在 <0>Weblate</0> 上协助更正。",
+  "save_without_linking_an_account": "不关联账户的储蓄目标",
+  "x_this_month": "<1>本月</1> <0/>"
 }

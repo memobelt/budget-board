@@ -32,6 +32,7 @@
   "add_asset_type": "Aggiungi tipo di risorsa",
   "add_balance": "Aggiungi Saldo",
   "add_category": "Aggiungi Categoria",
+  "add_contribution": "Aggiungi contributo",
   "add_goal": "Aggiungi Obbiettivo",
   "add_rule": "Aggiungi Regole",
   "add_value": "Aggiungi Valuta",
@@ -41,6 +42,8 @@
   "all": "Tutto",
   "all_children_will_also_be_deleted": "Verranno cancellati anche tutti i figli",
   "amount": "Importo",
+  "amount_already_saved": "Importo già risparmiato",
+  "amount_already_saved_description": "Registrato come primo contributo. Lascia 0 per iniziare da zero.",
   "amount_format": "Formato Importo",
   "amount_max": "Importo Massimo",
   "amount_min": "Importo Minimo",
@@ -69,8 +72,14 @@
   "before": "Prima",
   "both_income_and_expense_values_present_message": "Per la riga {{uid}} sono presenti sia i valori di entrata che quelli di uscita.",
   "budget_details": "Dettagli del budget",
+  "complete_date_optional_description": "Facoltativo. Lascia vuoto se non c'è una scadenza.",
+  "contributions": "Contributi",
+  "no_contributions": "Nessun contributo registrato.",
+  "no_target_date": "Nessuna data obiettivo",
+  "save_without_linking_an_account": "Risparmiare senza collegare un conto",
   "transactions": "Transazioni",
   "trends": "Tendenze",
   "two_factor_auth_recovery_codes_info": "I codici di ripristino dell'autenticazione a due fattori possono essere utilizzati per accedere al tuo account nel caso in cui non riuscissi più ad accedere all'app di autenticazione.",
-  "two_factor_auth_successfully_updated": "Le impostazioni dell'autenticazione a due fattori sono state aggiornate con successo."
+  "two_factor_auth_successfully_updated": "Le impostazioni dell'autenticazione a due fattori sono state aggiornate con successo.",
+  "x_this_month": "<0/> <1>questo mese</1>"
 }

@@ -41,9 +41,19 @@ public class Goal
     public DateOnly? Completed { get; set; } = null;
 
     /// <summary>
-    /// Accounts associated with the goal.
+    /// When true, progress is tracked by manually logged contributions instead of linked account balances.
+    /// </summary>
+    public bool IsManual { get; set; } = false;
+
+    /// <summary>
+    /// Accounts associated with the goal. Empty for manual goals.
     /// </summary>
     public ICollection<Account> Accounts { get; set; } = [];
+
+    /// <summary>
+    /// Manually logged contributions towards the goal. Only used by manual goals.
+    /// </summary>
+    public ICollection<GoalContribution> Contributions { get; set; } = [];
 
     /// <summary>
     /// Identifier for the user who owns the goal.
