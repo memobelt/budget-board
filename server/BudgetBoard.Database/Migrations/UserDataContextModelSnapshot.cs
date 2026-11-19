@@ -296,6 +296,44 @@ namespace BudgetBoard.Database.Migrations
                     b.ToTable("Balance", (string)null);
                 });
 
+            modelBuilder.Entity("BudgetBoard.Database.Models.Bill", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AccountID")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("DueDay")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("LastPaidDueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("UseAccountBalance")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("AccountID");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("Bill", (string)null);
+                });
+
             modelBuilder.Entity("BudgetBoard.Database.Models.Budget", b =>
                 {
                     b.Property<Guid>("ID")
@@ -1224,6 +1262,24 @@ namespace BudgetBoard.Database.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("BudgetBoard.Database.Models.Bill", b =>
+                {
+                    b.HasOne("BudgetBoard.Database.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BudgetBoard.Database.Models.ApplicationUser", "User")
+                        .WithMany("Bills")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BudgetBoard.Database.Models.Budget", b =>
                 {
                     b.HasOne("BudgetBoard.Database.Models.ApplicationUser", "User")
@@ -1557,6 +1613,8 @@ namespace BudgetBoard.Database.Migrations
                     b.Navigation("Assets");
 
                     b.Navigation("AutomaticRules");
+
+                    b.Navigation("Bills");
 
                     b.Navigation("Budgets");
 

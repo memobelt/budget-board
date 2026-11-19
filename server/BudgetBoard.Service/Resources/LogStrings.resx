@@ -475,4 +475,22 @@
     <data name="RecurringRuleAmbiguousMatchLog" xml:space="preserve">
         <value>Transaction {0} matched multiple recurring rules and was left unassigned.</value>
     </data>
+    <data name="BillInvalidNameLog" xml:space="preserve">
+        <value>Attempted to save a bill with an invalid name.</value>
+    </data>
+    <data name="BillInvalidDueDayLog" xml:space="preserve">
+        <value>Attempted to save a bill with an invalid due day.</value>
+    </data>
+    <data name="BillNegativeAmountLog" xml:space="preserve">
+        <value>Attempted to save a bill with a negative amount.</value>
+    </data>
+    <data name="BillUseBalanceWithoutAccountLog" xml:space="preserve">
+        <value>Attempted to use an account balance for a bill without an account.</value>
+    </data>
+    <data name="BillInvalidAccountLog" xml:space="preserve">
+        <value>Attempted to link a bill to an account that does not exist.</value>
+    </data>
+    <data name="BillNotFoundLog" xml:space="preserve">
+        <value>Attempted to access a bill that does not exist.</value>
+    </data>
 </root>

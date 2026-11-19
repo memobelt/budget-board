@@ -41,6 +41,11 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<Goal> Goals { get; set; } = [];
 
     /// <summary>
+    /// Collection of bills entered by the user.
+    /// </summary>
+    public ICollection<Bill> Bills { get; set; } = [];
+
+    /// <summary>
     /// Collection of transaction categories defined by the user.
     /// </summary>
     public ICollection<Category> TransactionCategories { get; set; } = [];

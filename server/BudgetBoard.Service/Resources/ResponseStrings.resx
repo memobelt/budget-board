@@ -526,4 +526,22 @@
     <data name="TransactionAlreadyRecurringError" xml:space="preserve">
         <value>This transaction is already associated with a recurring rule.</value>
     </data>
+    <data name="BillInvalidNameError" xml:space="preserve">
+        <value>Bill name is required and must be 100 characters or fewer.</value>
+    </data>
+    <data name="BillInvalidDueDayError" xml:space="preserve">
+        <value>Bill due day must be between 1 and 31.</value>
+    </data>
+    <data name="BillNegativeAmountError" xml:space="preserve">
+        <value>Bill amount must not be negative.</value>
+    </data>
+    <data name="BillUseBalanceWithoutAccountError" xml:space="preserve">
+        <value>Select an account to use its balance as the bill amount.</value>
+    </data>
+    <data name="BillInvalidAccountError" xml:space="preserve">
+        <value>The selected account does not exist.</value>
+    </data>
+    <data name="BillNotFoundError" xml:space="preserve">
+        <value>The bill you are trying to access does not exist.</value>
+    </data>
 </root>
