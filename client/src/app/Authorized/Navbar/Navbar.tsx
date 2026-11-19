@@ -14,6 +14,7 @@ import {
   LandmarkIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  ReceiptTextIcon,
   SettingsIcon,
 } from "lucide-react";
 import NavbarFooter from "./NavbarFooter/NavbarFooter";
@@ -102,6 +103,11 @@ const Navbar = (props: NavbarProps) => {
       path: "/budgets",
       label: t("budgets"),
       settings: [{ path: "/budgets/settings", label: t("settings") }],
+    },
+    {
+      icon: <ReceiptTextIcon color="currentColor" />,
+      path: "/bills",
+      label: t("bills", "Bills"),
     },
     {
       icon: <GoalIcon color="currentColor" />,
