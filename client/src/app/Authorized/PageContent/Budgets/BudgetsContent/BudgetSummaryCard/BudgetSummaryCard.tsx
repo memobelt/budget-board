@@ -32,10 +32,15 @@ interface BudgetSummaryCardProps {
 const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
   const { t } = useTranslation();
 
+  // Income and Expenses show this period's budgets only. Rollover carried in
+  // from earlier months is its own line and only counts toward Net Expenses.
   const rangeRolloverBudgetIds = getRangeRolloverBudgetIds(props.budgets);
-  const getAvailableLimit = (budget: IBudget): number =>
-    budget.limit +
-    (rangeRolloverBudgetIds.has(budget.id) ? budget.rollover : 0);
+  const getAvailableLimit = (budget: IBudget): number => budget.limit;
+  const getRolloverTotal = (budgets: IBudget[]): number =>
+    budgets.reduce(
+      (acc, b) => acc + (rangeRolloverBudgetIds.has(b.id) ? b.rollover : 0),
+      0,
+    );
 
   const incomeBudgetsTotal = props.budgets
     .filter((b) =>
@@ -91,8 +96,7 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
     props.everythingElseBudgets,
   );
   const everythingElseLimitTotal = props.everythingElseBudgets.reduce(
-    (acc, b) =>
-      acc + b.limit + (everythingElseRolloverIds.has(b.id) ? b.rollover : 0),
+    (acc, b) => acc + b.limit,
     0,
   );
 
@@ -105,6 +109,20 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
       )
       .reduce((acc, b) => acc + getAvailableLimit(b), 0) +
     everythingElseLimitTotal;
+  // Expense rollover, Everything Else's included: unspent money carried in is
+  // positive, an overspent deficit negative.
+  const rolloverTotal =
+    getRolloverTotal(
+      props.budgets.filter((b) =>
+        props.expenseCategories.some((c) =>
+          areStringsEqual(b.category, c.value),
+        ),
+      ),
+    ) +
+    props.everythingElseBudgets.reduce(
+      (acc, b) => acc + (everythingElseRolloverIds.has(b.id) ? b.rollover : 0),
+      0,
+    );
   const expenseTransactionsTotal =
     getTransactionsTotal(props.expenseCategories) +
     unbudgetedExpenseTransactionsTotal;
@@ -191,10 +209,26 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
               budgetValueType={StatusColorType.Expense}
               showDivider={expenseBudgetsTotal <= 0}
             />
+            {roundAwayFromZero(rolloverTotal) !== 0 && (
+              <BudgetSummaryItem
+                label={t("rollover")}
+                amount={rolloverTotal}
+                budgetValueType={StatusColorType.Total}
+                hideProgress
+              />
+            )}
             <BudgetSummaryItem
               label={t("net_expenses")}
-              amount={incomeTransactionsTotal + expenseTransactionsTotal}
-              projectedAmount={projectedNetExpensesTotal}
+              amount={
+                incomeTransactionsTotal +
+                expenseTransactionsTotal +
+                rolloverTotal
+              }
+              projectedAmount={
+                projectedNetExpensesTotal === undefined
+                  ? undefined
+                  : projectedNetExpensesTotal + rolloverTotal
+              }
               budgetValueType={StatusColorType.Total}
               hideProgress
               showDivider

@@ -663,6 +663,7 @@
   "roll_over_money_since": "Roll over money since:",
   "roll_over_unspent": "Roll over unspent",
   "rolled_over_colon": "Rolled over:",
+  "rollover": "Rollover",
   "rollover_description": "Rollover carries money from one month to the next. Whatever you don't spend from this budget is added to the following month's budget, and anything you overspend is taken off it. The balance builds up from the month you choose below.",
   "rollover_on_for_category": "Rollover is on for {{category}}",
   "rollover_on_for_subcategories": "Rollover is on for a subcategory",
