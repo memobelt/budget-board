@@ -67,6 +67,14 @@ const EverythingElseCard = (
   const createBudgetMutation = useCreateBudgetMutation();
 
   const [isEditing, { toggle: toggleEditing }] = useDisclosure(false);
+  // Groups (parent categories) start collapsed; expanding one lists its subcategories.
+  const [expandedGroups, setExpandedGroups] = React.useState<
+    Record<string, boolean>
+  >({});
+  const toggleGroup = (category: string) => {
+    const key = category.toLowerCase();
+    setExpandedGroups((current) => ({ ...current, [key]: !current[key] }));
+  };
 
   // Rollover settings can only be changed when a single month is shown.
   const budget =
@@ -122,7 +130,10 @@ const EverythingElseCard = (
   const rows = [
     { value: "", label: t(uncategorizedTransactionCategory) },
     ...props.categoryNodes
-      .map((node) => ({ value: node.value, label: undefined }))
+      .map((node) => ({
+        value: node.value,
+        label: undefined as string | undefined,
+      }))
       .sort(
         (a, b) =>
           (props.categoryToTransactionsTotalMap.get(a.value.toLowerCase()) ??
@@ -136,7 +147,23 @@ const EverythingElseCard = (
       amount:
         props.categoryToTransactionsTotalMap.get(row.value.toLowerCase()) ?? 0,
     }))
-    .filter((row) => roundAwayFromZero(row.amount) !== 0);
+    .filter((row) => roundAwayFromZero(row.amount) !== 0)
+    .map((row) => ({
+      ...row,
+      // Subcategories with spending, most spent first.
+      children: (
+        props.categoryNodes.find((node) => node.value === row.value)
+          ?.subCategories ?? []
+      )
+        .map((sub) => ({
+          value: sub.value,
+          amount:
+            props.categoryToTransactionsTotalMap.get(sub.value.toLowerCase()) ??
+            0,
+        }))
+        .filter((sub) => roundAwayFromZero(sub.amount) !== 0)
+        .sort((a, b) => a.amount - b.amount),
+    }));
 
   const amountElement = (
     <AmountText
@@ -257,27 +284,59 @@ const EverythingElseCard = (
           )}
         </Group>
       </Card.Section>
-      {rows.map((row) => (
-        <Card.Section
-          key={row.value || "uncategorized"}
-          onClick={() => props.openDetails(row.value, props.selectedDate)}
-          hoverable
-        >
-          <UnbudgetedChildItem
-            category={row.value}
-            label={row.label}
-            amount={row.amount}
-            isIncome={false}
-            icon={
-              row.value
-                ? getCategoryIcon(row.value, allTransactionCategories)
-                : ""
-            }
-            selectedDate={props.selectedDate}
-            hideAddBudget={row.value === ""}
-          />
-        </Card.Section>
-      ))}
+      {rows.map((row) => {
+        const isExpanded = expandedGroups[row.value.toLowerCase()] ?? false;
+        return (
+          <React.Fragment key={row.value || "uncategorized"}>
+            <Card.Section
+              onClick={() => props.openDetails(row.value, props.selectedDate)}
+              hoverable
+            >
+              <UnbudgetedChildItem
+                category={row.value}
+                label={row.label}
+                amount={row.amount}
+                isIncome={false}
+                icon={
+                  row.value
+                    ? getCategoryIcon(row.value, allTransactionCategories)
+                    : ""
+                }
+                selectedDate={props.selectedDate}
+                hideAddBudget={row.value === ""}
+                isExpanded={isExpanded}
+                onToggleExpanded={
+                  row.children.length > 0
+                    ? () => toggleGroup(row.value)
+                    : undefined
+                }
+              />
+            </Card.Section>
+            {isExpanded &&
+              row.children.map((child) => (
+                <Card.Section
+                  key={child.value}
+                  onClick={() =>
+                    props.openDetails(child.value, props.selectedDate)
+                  }
+                  hoverable
+                >
+                  <UnbudgetedChildItem
+                    category={child.value}
+                    amount={child.amount}
+                    isIncome={false}
+                    icon={getCategoryIcon(
+                      child.value,
+                      allTransactionCategories,
+                    )}
+                    selectedDate={props.selectedDate}
+                    indent="2.75rem"
+                  />
+                </Card.Section>
+              ))}
+          </React.Fragment>
+        );
+      })}
     </Card>
   );
 };
