@@ -39,6 +39,7 @@ public class BillService(
             DueDay = request.DueDay,
             UseAccountBalance = request.UseAccountBalance,
             AccountID = request.AccountID,
+            AccountLastFour = NormalizeAccountLastFour(request.AccountLastFour),
             UserID = userData.Id,
         };
 
@@ -78,6 +79,7 @@ public class BillService(
         bill.DueDay = request.DueDay;
         bill.UseAccountBalance = request.UseAccountBalance;
         bill.AccountID = request.AccountID;
+        bill.AccountLastFour = NormalizeAccountLastFour(request.AccountLastFour);
         bill.LastPaidDueDate = request.LastPaidDueDate;
 
         await userDataContext.SaveChangesAsync();
@@ -136,6 +138,29 @@ public class BillService(
         }
 
         return trimmedName;
+    }
+
+    /// <summary>
+    /// Returns null for a blank value, the value itself when it is exactly four digits,
+    /// and throws otherwise.
+    /// </summary>
+    private string? NormalizeAccountLastFour(string? accountLastFour)
+    {
+        var trimmed = accountLastFour?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        if (trimmed.Length != Bill.AccountLastFourLength || !trimmed.All(char.IsAsciiDigit))
+        {
+            logger.LogError("{LogMessage}", logLocalizer["BillInvalidAccountLastFourLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["BillInvalidAccountLastFourError"]
+            );
+        }
+
+        return trimmed;
     }
 
     private async Task<ApplicationUser> GetCurrentUserAsync(Guid id)

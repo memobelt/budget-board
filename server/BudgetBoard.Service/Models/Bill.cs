@@ -9,6 +9,7 @@ public interface IBillCreateRequest
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
+    string? AccountLastFour { get; }
 }
 
 public class BillCreateRequest : IBillCreateRequest
@@ -18,6 +19,7 @@ public class BillCreateRequest : IBillCreateRequest
     public required int DueDay { get; set; }
     public bool UseAccountBalance { get; set; } = false;
     public Guid? AccountID { get; set; } = null;
+    public string? AccountLastFour { get; set; } = null;
 }
 
 public interface IBillUpdateRequest
@@ -28,6 +30,7 @@ public interface IBillUpdateRequest
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
+    string? AccountLastFour { get; }
     DateOnly? LastPaidDueDate { get; }
 }
 
@@ -39,6 +42,7 @@ public class BillUpdateRequest : IBillUpdateRequest
     public required int DueDay { get; set; }
     public bool UseAccountBalance { get; set; } = false;
     public Guid? AccountID { get; set; } = null;
+    public string? AccountLastFour { get; set; } = null;
     public DateOnly? LastPaidDueDate { get; set; } = null;
 }
 
@@ -50,6 +54,7 @@ public interface IBillResponse
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
+    string? AccountLastFour { get; }
     DateOnly? LastPaidDueDate { get; }
     Guid UserID { get; }
 }
@@ -62,6 +67,7 @@ public class BillResponse : IBillResponse
     public int DueDay { get; set; }
     public bool UseAccountBalance { get; set; }
     public Guid? AccountID { get; set; }
+    public string? AccountLastFour { get; set; }
     public DateOnly? LastPaidDueDate { get; set; }
     public Guid UserID { get; set; }
 
@@ -73,6 +79,7 @@ public class BillResponse : IBillResponse
         DueDay = bill.DueDay;
         UseAccountBalance = bill.UseAccountBalance;
         AccountID = bill.AccountID;
+        AccountLastFour = bill.AccountLastFour;
         LastPaidDueDate = bill.LastPaidDueDate;
         UserID = bill.UserID;
     }

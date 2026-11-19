@@ -544,4 +544,7 @@
     <data name="BillNotFoundError" xml:space="preserve">
         <value>The bill you are trying to access does not exist.</value>
     </data>
+    <data name="BillInvalidAccountLastFourError" xml:space="preserve">
+        <value>Account last 4 digits must be exactly four numbers.</value>
+    </data>
 </root>

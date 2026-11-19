@@ -222,6 +222,7 @@ public class UserDataContext(DbContextOptions<UserDataContext> options)
         modelBuilder.Entity<Bill>(b =>
         {
             b.Property(e => e.Name).HasMaxLength(Bill.MaxNameLength).IsRequired();
+            b.Property(e => e.AccountLastFour).HasMaxLength(Bill.AccountLastFourLength);
             b.HasOne(e => e.User)
                 .WithMany(e => e.Bills)
                 .HasForeignKey(e => e.UserID)

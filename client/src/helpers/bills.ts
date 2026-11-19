@@ -56,6 +56,21 @@ export const getBillAmountDue = (
   return bill.amount;
 };
 
+/**
+ * Formats the account label shown on a bill, e.g. "Chase Freedom (1234)".
+ * Returns null when there is neither an account name nor last four digits.
+ */
+export const formatBillAccountLabel = (
+  accountName: string | null,
+  accountLastFour: string | null,
+): string | null => {
+  const lastFour = accountLastFour ? `(${accountLastFour})` : null;
+  if (accountName && lastFour) {
+    return `${accountName} ${lastFour}`;
+  }
+  return accountName ?? lastFour;
+};
+
 export const buildBillUpdateRequest = (
   bill: IBillResponse,
   changes: Partial<IBillUpdateRequest> = {},
@@ -66,6 +81,7 @@ export const buildBillUpdateRequest = (
   dueDay: bill.dueDay,
   useAccountBalance: bill.useAccountBalance,
   accountID: bill.accountID,
+  accountLastFour: bill.accountLastFour,
   lastPaidDueDate: bill.lastPaidDueDate,
   ...changes,
 });

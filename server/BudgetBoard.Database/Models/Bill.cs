@@ -6,6 +6,7 @@ namespace BudgetBoard.Database.Models;
 public class Bill
 {
     public const int MaxNameLength = 100;
+    public const int AccountLastFourLength = 4;
 
     /// <summary>
     /// Unique identifier for the bill.
@@ -36,6 +37,11 @@ public class Bill
     /// The due date of the most recent payment that was marked as paid, if any.
     /// </summary>
     public DateOnly? LastPaidDueDate { get; set; } = null;
+
+    /// <summary>
+    /// The last four digits of the account number this bill is paid towards, if entered.
+    /// </summary>
+    public string? AccountLastFour { get; set; } = null;
 
     /// <summary>
     /// Identifier for the account this bill is paid towards, if any.

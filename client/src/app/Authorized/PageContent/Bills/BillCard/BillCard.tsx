@@ -15,6 +15,7 @@ import {
   billDateFormat,
   BillMonthStatus,
   buildBillUpdateRequest,
+  formatBillAccountLabel,
   getDueDateInMonth,
   IBillMonthEntry,
 } from "~/helpers/bills";
@@ -40,6 +41,10 @@ const BillCard = (props: BillCardProps): React.ReactNode => {
   const deleteBillMutation = useDeleteBillMutation();
 
   const isPaid = props.entry.status === BillMonthStatus.Paid;
+  const accountLabel = formatBillAccountLabel(
+    props.accountName,
+    props.bill.accountLastFour,
+  );
 
   const markPaid = () =>
     updateBillMutation.mutate(
@@ -106,7 +111,7 @@ const BillCard = (props: BillCardProps): React.ReactNode => {
             {t("bill_due_date", {
               date: props.entry.dueDate.format("ll"),
             })}
-            {props.accountName ? ` · ${props.accountName}` : ""}
+            {accountLabel ? ` · ${accountLabel}` : ""}
           </CaptionText>
         </Stack>
         <Group gap="0.75rem" justify="space-between" wrap="nowrap">
