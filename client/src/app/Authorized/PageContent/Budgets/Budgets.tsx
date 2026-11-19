@@ -6,6 +6,8 @@ import BudgetsContent from "./BudgetsContent/BudgetsContent";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useBudgetsQuery } from "~/hooks/queries/useBudgetsQuery";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
+import { isTransfer } from "~/helpers/budgets";
 
 const Budgets = (): React.ReactNode => {
   const { dayjs } = useLocale();
@@ -26,10 +28,21 @@ const Budgets = (): React.ReactNode => {
     })),
   });
 
-  const timeToMonthlyTotalsMap: Map<number, number> = React.useMemo(
+  const { allTransactionCategories } = useTransactionCategories();
+
+  // Transfers only move money between accounts, so they aren't income or
+  // expenses anywhere on the budgets page.
+  const transactions = React.useMemo(
     () =>
-      buildTimeToMonthlyTotalsMap(selectedDates, transactionsQuery.data ?? []),
-    [selectedDates, transactionsQuery.data],
+      (transactionsQuery.data ?? []).filter(
+        (transaction) => !isTransfer(transaction, allTransactionCategories),
+      ),
+    [transactionsQuery.data, allTransactionCategories],
+  );
+
+  const timeToMonthlyTotalsMap: Map<number, number> = React.useMemo(
+    () => buildTimeToMonthlyTotalsMap(selectedDates, transactions),
+    [selectedDates, transactions],
   );
 
   return (
@@ -47,7 +60,7 @@ const Budgets = (): React.ReactNode => {
       />
       <BudgetsContent
         budgets={budgetsQuery.data}
-        transactions={transactionsQuery.data ?? []}
+        transactions={transactions}
         selectedDates={selectedDates}
         selectedDate={
           selectedDates.length === 1 ? (selectedDates[0] ?? null) : null
