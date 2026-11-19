@@ -220,6 +220,11 @@ export const getFilteredTransactions = (
         .includes(filters.merchantName.toLowerCase()),
     );
   }
+  if (filters.notes && filters.notes.length > 0) {
+    filteredTransactions = filteredTransactions.filter((t) =>
+      (t.notes ?? "").toLowerCase().includes(filters.notes.toLowerCase()),
+    );
+  }
   if (filters.amountRange[0] !== null) {
     filteredTransactions = filteredTransactions.filter(
       (t) => t.amount >= filters.amountRange[0]!,

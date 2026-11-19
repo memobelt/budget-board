@@ -12,7 +12,7 @@ import {
   TextInput,
 } from "@teelur/budget-board-ui";
 import { DatesRangeValue } from "@mantine/dates";
-import { Filters } from "~/models/transaction";
+import { Filters, IFilters } from "~/models/transaction";
 import React from "react";
 import { useTransactionFilters } from "~/providers/TransactionFiltersProvider/TransactionFiltersProvider";
 import { useTranslation } from "react-i18next";
@@ -38,19 +38,21 @@ const FilterCard = (): React.ReactNode => {
     useTransactionCategories();
   const suggestionsQuery = useTagSuggestionsQuery();
 
+  // Changes some filters and keeps the rest.
+  const updateFilters = (changes: Partial<IFilters>) => {
+    const newFilters = new Filters(transactionFilters);
+    Object.assign(newFilters, changes);
+    setTransactionFilters(newFilters);
+  };
+
   const onDatePickerChange = (dateRange: DatesRangeValue<string>) => {
     const parsedDateRange: [Date | null, Date | null] = [
       dateRange[0] ? dayjs(dateRange[0]).toDate() : null,
       dateRange[1] ? dayjs(dateRange[1]).toDate() : null,
     ];
-    const newFilters = new Filters();
-    newFilters.accounts = transactionFilters.accounts;
-    newFilters.category = transactionFilters.category;
-    newFilters.dateRange = parsedDateRange;
-    newFilters.merchantName = transactionFilters.merchantName;
-    newFilters.amountRange = transactionFilters.amountRange;
-    newFilters.tags = transactionFilters.tags;
-    setTransactionFilters(newFilters);
+    updateFilters({
+      dateRange: parsedDateRange,
+    });
   };
 
   return (
@@ -94,14 +96,9 @@ const FilterCard = (): React.ReactNode => {
             miw={150}
             value={transactionFilters.accounts}
             onChange={(newAccountIds: string[]) => {
-              const newFilters = new Filters();
-              newFilters.accounts = newAccountIds;
-              newFilters.category = transactionFilters.category;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = transactionFilters.merchantName;
-              newFilters.amountRange = transactionFilters.amountRange;
-              newFilters.tags = transactionFilters.tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                accounts: newAccountIds,
+              });
             }}
             hideHidden
           />
@@ -112,14 +109,9 @@ const FilterCard = (): React.ReactNode => {
             categories={transactionCategories}
             value={transactionFilters.category}
             onChange={(val) => {
-              const newFilters = new Filters();
-              newFilters.accounts = transactionFilters.accounts;
-              newFilters.category = val;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = transactionFilters.merchantName;
-              newFilters.amountRange = transactionFilters.amountRange;
-              newFilters.tags = transactionFilters.tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                category: val,
+              });
             }}
             withinPortal
             includeUncategorized
@@ -133,15 +125,18 @@ const FilterCard = (): React.ReactNode => {
             placeholder={t("enter_merchant_name")}
             value={transactionFilters.merchantName}
             onChange={(e) => {
-              const newFilters = new Filters();
-              newFilters.accounts = transactionFilters.accounts;
-              newFilters.category = transactionFilters.category;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = e.currentTarget.value;
-              newFilters.amountRange = transactionFilters.amountRange;
-              newFilters.tags = transactionFilters.tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                merchantName: e.currentTarget.value,
+              });
             }}
+          />
+          <TextInput
+            className={classes.merchantInput}
+            miw={140}
+            label={t("notes")}
+            placeholder={t("enter_notes")}
+            value={transactionFilters.notes}
+            onChange={(e) => updateFilters({ notes: e.currentTarget.value })}
           />
           <NumberInput
             className={classes.amountInput}
@@ -150,17 +145,12 @@ const FilterCard = (): React.ReactNode => {
             placeholder="0"
             value={transactionFilters.amountRange[0] ?? ""}
             onChange={(val) => {
-              const newFilters = new Filters();
-              newFilters.accounts = transactionFilters.accounts;
-              newFilters.category = transactionFilters.category;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = transactionFilters.merchantName;
-              newFilters.amountRange = [
-                val === "" ? null : Number(val),
-                transactionFilters.amountRange[1],
-              ];
-              newFilters.tags = transactionFilters.tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                amountRange: [
+                  val === "" ? null : Number(val),
+                  transactionFilters.amountRange[1],
+                ],
+              });
             }}
             prefix={currencySymbol}
             decimalScale={decimalPlaces}
@@ -174,17 +164,12 @@ const FilterCard = (): React.ReactNode => {
             placeholder="0"
             value={transactionFilters.amountRange[1] ?? ""}
             onChange={(val) => {
-              const newFilters = new Filters();
-              newFilters.accounts = transactionFilters.accounts;
-              newFilters.category = transactionFilters.category;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = transactionFilters.merchantName;
-              newFilters.amountRange = [
-                transactionFilters.amountRange[0],
-                val === "" ? null : Number(val),
-              ];
-              newFilters.tags = transactionFilters.tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                amountRange: [
+                  transactionFilters.amountRange[0],
+                  val === "" ? null : Number(val),
+                ],
+              });
             }}
             prefix={currencySymbol}
             decimalScale={decimalPlaces}
@@ -198,14 +183,9 @@ const FilterCard = (): React.ReactNode => {
             data={suggestionsQuery.data ?? []}
             value={transactionFilters.tags}
             onChange={(tags) => {
-              const newFilters = new Filters();
-              newFilters.accounts = transactionFilters.accounts;
-              newFilters.category = transactionFilters.category;
-              newFilters.dateRange = transactionFilters.dateRange;
-              newFilters.merchantName = transactionFilters.merchantName;
-              newFilters.amountRange = transactionFilters.amountRange;
-              newFilters.tags = tags;
-              setTransactionFilters(newFilters);
+              updateFilters({
+                tags: tags,
+              });
             }}
           />
         </Flex>
