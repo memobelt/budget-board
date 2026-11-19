@@ -707,6 +707,8 @@
   "to": "to",
   "toggle_budget_category": "Expand or collapse {{category}}",
   "total": "Total",
+  "total_expenses": "Total Expenses",
+  "total_income": "Total Income",
   "total_spending": "Total Spending",
   "train_auto_categorizer": "Train Auto-Categorizer",
   "train_auto_categorizer_button": "Train",

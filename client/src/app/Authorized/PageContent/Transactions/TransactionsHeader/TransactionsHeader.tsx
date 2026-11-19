@@ -1,7 +1,12 @@
 import classes from "./TransactionsHeader.module.css";
 
 import { Collapse, Flex, Group, Stack } from "@mantine/core";
-import { Button, MonthToolcards } from "@teelur/budget-board-ui";
+import {
+  AmountText,
+  BodyText,
+  Button,
+  MonthToolcards,
+} from "@teelur/budget-board-ui";
 import { useDisclosure } from "@mantine/hooks";
 import { FilterIcon, ListChecksIcon } from "lucide-react";
 import React from "react";
@@ -26,6 +31,11 @@ import { isTransfer } from "~/helpers/budgets";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 import { getMonthsInDateRange } from "~/helpers/datetime";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
+import { usePrivacyMode } from "~/providers/PrivacyModeProvider/PrivacyModeProvider";
+import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsProvider";
+import { SignDisplay } from "~/helpers/currency";
+import { CategoryTypes } from "~/models/category";
+import { areStringsEqual } from "~/helpers/utils";
 
 interface TransactionsHeaderProps {
   sort: Sorts;
@@ -45,8 +55,11 @@ const TransactionsHeader = (
   const { t } = useTranslation();
   const { transactionFilters, isFiltersPanelOpen, toggleFiltersPanel } =
     useTransactionFilters();
-  const { allTransactionCategories } = useTransactionCategories();
-  const { dayjs, dayjsLocale } = useLocale();
+  const { allTransactionCategories, getCategoryType } =
+    useTransactionCategories();
+  const { dayjs, dayjsLocale, intlLocale } = useLocale();
+  const { isPrivacyModeEnabled } = usePrivacyMode();
+  const { preferredCurrency, decimalPlaces } = useUserSettings();
   const [canSelectMultiple, { toggle, open }] = useDisclosure(false);
 
   const toggleSelectMultiple = () => {
@@ -77,6 +90,48 @@ const TransactionsHeader = (
       ),
     [props.selectedMonths, props.transactions, allTransactionCategories],
   );
+
+  // Income and spending across the selected months, following the active
+  // filters. Transfers only move money between accounts, and deleted
+  // transactions don't count.
+  const { totalIncome, totalExpenses } = React.useMemo(() => {
+    let income = 0;
+    let expenses = 0;
+    getFilteredTransactions(
+      props.transactions,
+      transactionFilters ?? new Filters(),
+      allTransactionCategories,
+    ).forEach((transaction) => {
+      if (
+        transaction.deleted !== null ||
+        isTransfer(transaction, allTransactionCategories) ||
+        !props.selectedMonths.some((month) =>
+          dayjs(transaction.date).isSame(month, "month"),
+        )
+      ) {
+        return;
+      }
+
+      if (
+        areStringsEqual(
+          getCategoryType(transaction.category ?? ""),
+          CategoryTypes.Income,
+        )
+      ) {
+        income += transaction.amount;
+      } else {
+        expenses += transaction.amount;
+      }
+    });
+    return { totalIncome: income, totalExpenses: expenses };
+  }, [
+    props.transactions,
+    props.selectedMonths,
+    transactionFilters,
+    allTransactionCategories,
+    getCategoryType,
+    dayjs,
+  ]);
 
   const getMonthStatus = React.useCallback(
     (date: Date) => getMonthToolcardStatus(timeToMonthlyTotalsMap, date),
@@ -136,6 +191,38 @@ const TransactionsHeader = (
   return (
     <Stack className={classes.root}>
       <Flex className={classes.header}>
+        <Group className={classes.totals}>
+          <Stack gap={0}>
+            <BodyText tone="secondary" size="xs">
+              {t("total_income")}
+            </BodyText>
+            <AmountText
+              amount={totalIncome}
+              size="lg"
+              isSensitive={isPrivacyModeEnabled}
+              currency={preferredCurrency}
+              decimalPlaces={decimalPlaces}
+              locale={intlLocale}
+              signDisplay={SignDisplay.Auto}
+            />
+          </Stack>
+          <Stack gap={0}>
+            <BodyText tone="secondary" size="xs">
+              {t("total_expenses")}
+            </BodyText>
+            <AmountText
+              amount={totalExpenses}
+              size="lg"
+              isSensitive={isPrivacyModeEnabled}
+              currency={preferredCurrency}
+              decimalPlaces={decimalPlaces}
+              locale={intlLocale}
+              signDisplay={SignDisplay.Auto}
+              invertSign
+              c="var(--bbui-color-error)"
+            />
+          </Stack>
+        </Group>
         <Group className={classes.buttonGroup}>
           <ImportTransactionsModal />
           <ExportTransactionsModal />
