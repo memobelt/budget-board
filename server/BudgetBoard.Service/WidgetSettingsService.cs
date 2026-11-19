@@ -45,6 +45,9 @@ public class WidgetSettingsService(
 
         static DefaultWidgetLayout GetDefaultWidgetLayout(string widgetType) =>
             WidgetSettingsHelpers.DefaultLayouts.FirstOrDefault(dl => dl.WidgetType == widgetType)
+            ?? WidgetSettingsHelpers.OptionalLayouts.FirstOrDefault(dl =>
+                dl.WidgetType == widgetType
+            )
             ?? WidgetSettingsHelpers.GenericDefaultLayout;
     }
 

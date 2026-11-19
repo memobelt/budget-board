@@ -79,6 +79,23 @@ public static class WidgetSettingsHelpers
     ];
 
     /// <summary>
+    /// Sizes for widgets that can be added to the dashboard but aren't part of the
+    /// default dashboard. Used when such a widget is added without a size.
+    /// </summary>
+    public static readonly IReadOnlyList<DefaultWidgetLayout> OptionalLayouts =
+    [
+        new DefaultWidgetLayout(
+            WidgetTypes.NewTransactions,
+            LgX: 0,
+            LgY: 0,
+            LgW: 8,
+            LgH: 11,
+            SmY: 0,
+            SmH: 11
+        ),
+    ];
+
+    /// <summary>
     /// Generic default layout used when no specific layout is found for a widget.
     /// </summary>
     public static readonly DefaultWidgetLayout GenericDefaultLayout = new(

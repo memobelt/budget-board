@@ -29,6 +29,12 @@ export const WIDGET_REGISTRY: WidgetRegistryEntry[] = [
     maxInstances: 1,
   },
   {
+    widgetType: "NewTransactions",
+    labelKey: "new_transactions",
+    descriptionKey: "new_transactions_widget_description",
+    maxInstances: 1,
+  },
+  {
     widgetType: "SpendingTrends",
     labelKey: "spending_trends",
     descriptionKey: "spending_trends_widget_description",
