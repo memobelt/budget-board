@@ -37,14 +37,14 @@ export const getNextDueDate = (bill: IBillResponse, today: Dayjs): Dayjs => {
 };
 
 /**
- * Returns the amount due for a bill. When the bill uses its linked account's
+ * Returns the amount due for a bill, or null when no amount has been entered. When the bill uses its linked account's
  * balance, liability balances (stored as negative numbers) are converted to a
  * positive amount owed; a credit balance means nothing is owed.
  */
 export const getBillAmountDue = (
   bill: IBillResponse,
   accounts: IAccountResponse[],
-): number => {
+): number | null => {
   if (bill.useAccountBalance && bill.accountID) {
     const account = accounts.find((a) => a.id === bill.accountID);
     if (!account) {

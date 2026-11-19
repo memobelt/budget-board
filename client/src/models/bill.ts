@@ -1,6 +1,6 @@
 export interface IBillCreateRequest {
   name: string;
-  amount: number;
+  amount: number | null;
   dueDay: number;
   useAccountBalance: boolean;
   accountID: string | null;
@@ -15,7 +15,7 @@ export interface IBillUpdateRequest extends IBillCreateRequest {
 export interface IBillResponse {
   id: string;
   name: string;
-  amount: number;
+  amount: number | null;
   dueDay: number;
   useAccountBalance: boolean;
   accountID: string | null;

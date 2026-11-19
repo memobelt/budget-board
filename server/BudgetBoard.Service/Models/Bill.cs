@@ -5,7 +5,7 @@ namespace BudgetBoard.Service.Models;
 public interface IBillCreateRequest
 {
     string Name { get; }
-    decimal Amount { get; }
+    decimal? Amount { get; }
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
@@ -15,7 +15,7 @@ public interface IBillCreateRequest
 public class BillCreateRequest : IBillCreateRequest
 {
     public required string Name { get; set; }
-    public decimal Amount { get; set; } = 0.0M;
+    public decimal? Amount { get; set; } = null;
     public required int DueDay { get; set; }
     public bool UseAccountBalance { get; set; } = false;
     public Guid? AccountID { get; set; } = null;
@@ -26,7 +26,7 @@ public interface IBillUpdateRequest
 {
     Guid ID { get; }
     string Name { get; }
-    decimal Amount { get; }
+    decimal? Amount { get; }
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
@@ -38,7 +38,7 @@ public class BillUpdateRequest : IBillUpdateRequest
 {
     public required Guid ID { get; set; }
     public required string Name { get; set; }
-    public decimal Amount { get; set; } = 0.0M;
+    public decimal? Amount { get; set; } = null;
     public required int DueDay { get; set; }
     public bool UseAccountBalance { get; set; } = false;
     public Guid? AccountID { get; set; } = null;
@@ -50,7 +50,7 @@ public interface IBillResponse
 {
     Guid ID { get; }
     string Name { get; }
-    decimal Amount { get; }
+    decimal? Amount { get; }
     int DueDay { get; }
     bool UseAccountBalance { get; }
     Guid? AccountID { get; }
@@ -63,7 +63,7 @@ public class BillResponse : IBillResponse
 {
     public Guid ID { get; set; }
     public string Name { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
+    public decimal? Amount { get; set; }
     public int DueDay { get; set; }
     public bool UseAccountBalance { get; set; }
     public Guid? AccountID { get; set; }
