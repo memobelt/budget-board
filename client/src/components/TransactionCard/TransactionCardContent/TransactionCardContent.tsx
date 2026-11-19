@@ -11,6 +11,7 @@ import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsPr
 import { Repeat2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePrivacyMode } from "~/providers/PrivacyModeProvider/PrivacyModeProvider";
+import { useNewTransactions } from "~/providers/NewTransactionsProvider/NewTransactionsProvider";
 
 interface TransactionCardContentProps {
   transaction: ITransaction;
@@ -24,6 +25,8 @@ const TransactionCardContent = (
   const { preferredCurrency, decimalPlaces } = useUserSettings();
   const { t } = useTranslation();
   const { isPrivacyModeEnabled } = usePrivacyMode();
+  const { isNewTransaction } = useNewTransactions();
+  const isNew = isNewTransaction(props.transaction);
 
   const categoryValue =
     (props.transaction.subcategory ?? "").length > 0
@@ -39,15 +42,24 @@ const TransactionCardContent = (
         <BodyText className={classes.merchantNameText}>
           {props.transaction.merchantName}
         </BodyText>
-        {props.transaction.recurringRuleID && (
-          <Tooltip label={t("recurring")}>
-            <Repeat2
-              size="1.2rem"
-              aria-label={t("recurring")}
-              color="var(--bbui-color-primary)"
-            />
-          </Tooltip>
-        )}
+        <Group gap="0.35rem" wrap="nowrap">
+          {isNew && (
+            <Tooltip label={t("new_transaction_tooltip")}>
+              <Badge variant="light" color="success" size="xs">
+                {t("new_transaction_badge")}
+              </Badge>
+            </Tooltip>
+          )}
+          {props.transaction.recurringRuleID && (
+            <Tooltip label={t("recurring")}>
+              <Repeat2
+                size="1.2rem"
+                aria-label={t("recurring")}
+                color="var(--bbui-color-primary)"
+              />
+            </Tooltip>
+          )}
+        </Group>
       </Group>
       <Flex
         className={classes.contentSubcontainer}

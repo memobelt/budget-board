@@ -41,6 +41,13 @@ public class Transaction
     public string? MerchantName { get; set; } = null;
 
     /// <summary>
+    /// The date and time (UTC) when the transaction was added to Budget Board.
+    /// Unlike <see cref="Date"/>, which is when the purchase happened, this is when it was
+    /// synced or entered, so it is used to surface transactions that arrived since the user's last visit.
+    /// </summary>
+    public DateTime Created { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
     /// The date and time when the transaction was deleted; null if active.
     /// </summary>
     public DateTime? Deleted { get; set; } = null;

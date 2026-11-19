@@ -106,6 +106,8 @@ export interface ITransaction {
   merchantName: string | null;
   pending: boolean;
   deleted: Date | null;
+  /** When the transaction was synced or entered (not when it happened). */
+  created: string;
   notes: string;
   tags: string[];
   recurringRuleID: string | null;
@@ -128,6 +130,8 @@ export interface IFilters {
   notes: string;
   amountRange: [number | null, number | null];
   tags: string[];
+  /** Only show transactions synced since the user's last visit. */
+  newOnly: boolean;
 }
 
 export class Filters implements IFilters {
@@ -138,6 +142,7 @@ export class Filters implements IFilters {
   notes: string = "";
   amountRange: [number | null, number | null] = [null, null];
   tags: string[] = [];
+  newOnly: boolean = false;
 
   constructor(filter?: Filters) {
     if (filter) {
@@ -148,6 +153,7 @@ export class Filters implements IFilters {
       this.notes = filter.notes ?? "";
       this.amountRange = filter.amountRange;
       this.tags = filter.tags;
+      this.newOnly = filter.newOnly ?? false;
     }
   }
 
@@ -162,6 +168,7 @@ export class Filters implements IFilters {
       this.notes === other.notes &&
       this.amountRange[0] === other.amountRange[0] &&
       this.amountRange[1] === other.amountRange[1] &&
+      this.newOnly === other.newOnly &&
       JSON.stringify(
         this.tags.map((tag) => tag.trim().toUpperCase()).sort(),
       ) ===
@@ -175,6 +182,9 @@ export enum TransactionCardType {
   Edit,
   Uncategorized,
 }
+
+/** Source of transactions entered by hand. Must match the server's TransactionSource.Manual. */
+export const manualTransactionSource = "Manual";
 
 export const hiddenTransactionCategory = "Hide from Budgets";
 /** Built-in category for moving money between accounts. Must match the server's. */

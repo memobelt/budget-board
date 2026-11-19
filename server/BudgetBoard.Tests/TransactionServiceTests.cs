@@ -222,6 +222,113 @@ public class TransactionServiceTests
     }
     #endregion
 
+    #region ReadNewTransactionsAsync
+    [Fact]
+    public async Task ReadNewTransactionsAsync_ShouldOnlyReturnSyncedTransactionsAddedSinceLastVisit()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var newSince = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
+        helper.demoUser.NewTransactionsSince = newSince;
+
+        var transactionService = new TransactionService(
+            Mock.Of<ILogger<ITransactionService>>(),
+            helper.UserDataContext,
+            Mock.Of<INowProvider>(),
+            Mock.Of<IAutomaticTransactionCategorizerService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>(),
+            CreateTagService(helper),
+            Mock.Of<IRecurringRuleService>()
+        );
+
+        var accountFaker = new AccountFaker(helper.demoUser.Id);
+        var account = accountFaker.Generate();
+        account.HideTransactions = false;
+        var hiddenAccount = accountFaker.Generate();
+        hiddenAccount.HideTransactions = true;
+
+        var transactionFaker = new TransactionFaker([account.ID]);
+        var transactions = transactionFaker.Generate(5);
+        foreach (var transaction in transactions)
+        {
+            transaction.Source = TransactionSource.SimpleFIN;
+        }
+
+        // New and synced: returned.
+        transactions[0].Created = newSince.AddHours(1);
+        // Synced before the last visit: not new.
+        transactions[1].Created = newSince.AddHours(-1);
+        // Entered by hand: not new.
+        transactions[2].Created = newSince.AddHours(1);
+        transactions[2].Source = TransactionSource.Manual;
+        // Deleted: not new.
+        transactions[3].Created = newSince.AddHours(1);
+        transactions[3].Deleted = newSince.AddHours(2);
+        // New and synced from LunchFlow: returned.
+        transactions[4].Created = newSince.AddHours(3);
+        transactions[4].Source = TransactionSource.LunchFlow;
+
+        account.Transactions = transactions;
+
+        var hiddenTransaction = new TransactionFaker([hiddenAccount.ID]).Generate();
+        hiddenTransaction.Source = TransactionSource.SimpleFIN;
+        hiddenTransaction.Created = newSince.AddHours(1);
+        hiddenAccount.Transactions = [hiddenTransaction];
+
+        helper.UserDataContext.Accounts.Add(account);
+        helper.UserDataContext.Accounts.Add(hiddenAccount);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var result = await transactionService.ReadNewTransactionsAsync(helper.demoUser.Id);
+
+        // Assert
+        result.Select(t => t.ID).Should().BeEquivalentTo([transactions[0].ID, transactions[4].ID]);
+    }
+
+    [Fact]
+    public async Task CreateTransactionAsync_ShouldStampCreatedTime()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var now = new DateTime(2026, 10, 23, 8, 0, 0, DateTimeKind.Utc);
+        var nowProviderMock = new Mock<INowProvider>();
+        nowProviderMock.Setup(n => n.UtcNow).Returns(now);
+
+        var transactionService = new TransactionService(
+            Mock.Of<ILogger<ITransactionService>>(),
+            helper.UserDataContext,
+            nowProviderMock.Object,
+            Mock.Of<IAutomaticTransactionCategorizerService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>(),
+            CreateTagService(helper),
+            Mock.Of<IRecurringRuleService>()
+        );
+
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        account.Source = AccountSource.SimpleFIN;
+        helper.UserDataContext.Accounts.Add(account);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await transactionService.CreateTransactionAsync(
+            helper.demoUser.Id,
+            new TransactionCreateRequest
+            {
+                Amount = 12.0M,
+                Date = new DateOnly(2026, 10, 1),
+                AccountID = account.ID,
+                Source = TransactionSource.SimpleFIN,
+            }
+        );
+
+        // Assert
+        helper.UserDataContext.Transactions.Single().Created.Should().Be(now);
+    }
+    #endregion
+
     #region ReadTransactionsAsync
     [Fact]
     public async Task ReadTransactionsAsync_WhenValidData_ShouldReturnTransactions()

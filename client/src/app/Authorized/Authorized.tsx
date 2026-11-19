@@ -10,6 +10,7 @@ import PageContent from "./PageContent/PageContent";
 import Header from "./Header/Header";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { TransactionFiltersProvider } from "~/providers/TransactionFiltersProvider/TransactionFiltersProvider";
+import { NewTransactionsProvider } from "~/providers/NewTransactionsProvider/NewTransactionsProvider";
 import { TransactionCategoryProvider } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 import { AccountTypeProvider } from "~/providers/AccountTypeProvider/AccountTypeProvider";
 import { AssetTypeProvider } from "~/providers/AssetTypeProvider/AssetTypeProvider";
@@ -75,10 +76,12 @@ const Authorized = (): React.ReactNode => {
           <AssetTypeProvider>
             <TransactionCategoryProvider>
               <TransactionFiltersProvider>
-                <TransactionImportJobProvider>
-                  <PageContent />
-                  <TransactionImportJobPanel />
-                </TransactionImportJobProvider>
+                <NewTransactionsProvider>
+                  <TransactionImportJobProvider>
+                    <PageContent />
+                    <TransactionImportJobPanel />
+                  </TransactionImportJobProvider>
+                </NewTransactionsProvider>
               </TransactionFiltersProvider>
             </TransactionCategoryProvider>
           </AssetTypeProvider>

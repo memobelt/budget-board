@@ -1,6 +1,7 @@
 ﻿using Bogus;
 using BudgetBoard.Database.Models;
 using BudgetBoard.Service;
+using BudgetBoard.Service.Helpers;
 using BudgetBoard.Service.Interfaces;
 using BudgetBoard.Service.Models;
 using BudgetBoard.Service.Resources;
@@ -421,6 +422,98 @@ public class ApplicationUserServiceTests
         await act.Should()
             .ThrowAsync<BudgetBoardServiceException>()
             .WithMessage("RemoveOidcFailedError");
+    }
+    #endregion
+
+    #region RecordVisitAsync
+    private static ApplicationUserService CreateServiceWithNow(TestHelper helper, DateTime now)
+    {
+        var nowProviderMock = new Mock<INowProvider>();
+        nowProviderMock.Setup(n => n.UtcNow).Returns(now);
+
+        return new ApplicationUserService(
+            Mock.Of<ILogger<IApplicationUserService>>(),
+            helper.UserDataContext,
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>(),
+            nowProviderMock.Object
+        );
+    }
+
+    [Fact]
+    public async Task RecordVisitAsync_WhenFirstVisit_NothingIsNew()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var now = new DateTime(2026, 10, 23, 15, 0, 0, DateTimeKind.Utc);
+        var service = CreateServiceWithNow(helper, now);
+
+        // Act
+        var result = await service.RecordVisitAsync(helper.demoUser.Id);
+
+        // Assert
+        result.NewTransactionsSince.Should().Be(now);
+        helper.demoUser.LastActive.Should().Be(now);
+    }
+
+    [Fact]
+    public async Task RecordVisitAsync_WhenReturningAfterIdleTimeout_StartsNewVisit()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var lastActive = new DateTime(2026, 10, 22, 21, 0, 0, DateTimeKind.Utc);
+        var now = lastActive.AddHours(10);
+        helper.demoUser.LastActive = lastActive;
+        helper.demoUser.NewTransactionsSince = lastActive.AddDays(-3);
+        helper.UserDataContext.SaveChanges();
+        var service = CreateServiceWithNow(helper, now);
+
+        // Act
+        var result = await service.RecordVisitAsync(helper.demoUser.Id);
+
+        // Assert
+        result.NewTransactionsSince.Should().Be(lastActive);
+        helper.demoUser.LastActive.Should().Be(now);
+    }
+
+    [Fact]
+    public async Task RecordVisitAsync_WhenStillActive_KeepsCurrentVisit()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var newSince = new DateTime(2026, 10, 20, 9, 0, 0, DateTimeKind.Utc);
+        var lastActive = new DateTime(2026, 10, 23, 15, 0, 0, DateTimeKind.Utc);
+        var now = lastActive.AddMinutes(10);
+        helper.demoUser.LastActive = lastActive;
+        helper.demoUser.NewTransactionsSince = newSince;
+        helper.UserDataContext.SaveChanges();
+        var service = CreateServiceWithNow(helper, now);
+
+        // Act
+        var result = await service.RecordVisitAsync(helper.demoUser.Id);
+
+        // Assert
+        result.NewTransactionsSince.Should().Be(newSince);
+        helper.demoUser.LastActive.Should().Be(now);
+    }
+
+    [Fact]
+    public async Task MarkTransactionsSeenAsync_ClearsNewTransactions()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var now = new DateTime(2026, 10, 23, 15, 0, 0, DateTimeKind.Utc);
+        helper.demoUser.LastActive = now.AddMinutes(-5);
+        helper.demoUser.NewTransactionsSince = now.AddDays(-2);
+        helper.UserDataContext.SaveChanges();
+        var service = CreateServiceWithNow(helper, now);
+
+        // Act
+        var result = await service.MarkTransactionsSeenAsync(helper.demoUser.Id);
+
+        // Assert
+        result.NewTransactionsSince.Should().Be(now);
+        helper.demoUser.NewTransactionsSince.Should().Be(now);
     }
     #endregion
 

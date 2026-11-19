@@ -144,6 +144,7 @@ public interface ITransactionResponse
     string? MerchantName { get; }
     bool Pending { get; }
     DateTime? Deleted { get; }
+    DateTime Created { get; }
     string Notes { get; }
     string AccountName { get; }
     string Source { get; }
@@ -168,6 +169,7 @@ public class TransactionResponse : ITransactionResponse
     public string? MerchantName { get; set; } = null;
     public bool Pending { get; set; } = false;
     public DateTime? Deleted { get; set; } = null;
+    public DateTime Created { get; set; } = DateTime.MinValue;
     public string Notes { get; set; } = string.Empty;
     public string AccountName { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
@@ -190,6 +192,7 @@ public class TransactionResponse : ITransactionResponse
         Subcategory = transaction.Subcategory;
         MerchantName = transaction.MerchantName;
         Deleted = transaction.Deleted;
+        Created = transaction.Created;
         Notes = transaction.Notes;
         AccountName = transaction.Account?.Name ?? string.Empty;
         Source = transaction.Source;
