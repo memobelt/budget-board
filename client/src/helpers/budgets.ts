@@ -103,6 +103,69 @@ export const getUnbudgetedSubcategoriesTotal = (
 };
 
 /**
+ * A category whose spending falls, in whole or in part, into Everything Else.
+ * When `isPartial`, the category has budgeted subcategories, and only its
+ * unbudgeted subcategories (listed in `subCategories`) belong to Everything
+ * Else; the rest stays with the category's own budget.
+ */
+export interface IEverythingElseGroup extends ICategoryNode {
+  isPartial: boolean;
+}
+
+/**
+ * Works out what falls into Everything Else among the expense categories: a
+ * category with no budget at all goes in whole, and a category with budgeted
+ * subcategories contributes only its unbudgeted ones. A category budgeted only
+ * at the top level keeps all of its spending.
+ */
+export const buildEverythingElseGroups = (
+  expenseCategories: ICategoryNode[],
+  isBudgeted: (category: string) => boolean,
+): IEverythingElseGroup[] =>
+  expenseCategories.flatMap((category): IEverythingElseGroup[] => {
+    const hasBudgetedSubcategory = category.subCategories.some((subCategory) =>
+      isBudgeted(subCategory.value),
+    );
+
+    if (!isBudgeted(category.value) && !hasBudgetedSubcategory) {
+      return [{ ...category, isPartial: false }];
+    }
+
+    if (!hasBudgetedSubcategory) {
+      return [];
+    }
+
+    const unbudgetedSubcategories = category.subCategories.filter(
+      (subCategory) => !isBudgeted(subCategory.value),
+    );
+    return unbudgetedSubcategories.length > 0
+      ? [
+          {
+            ...category,
+            subCategories: unbudgetedSubcategories,
+            isPartial: true,
+          },
+        ]
+      : [];
+  });
+
+/**
+ * How much of a group falls into Everything Else, from a map of lowercase
+ * category to total (transactions or forecast).
+ */
+export const getEverythingElseGroupTotal = (
+  group: IEverythingElseGroup,
+  totals: Map<string, number>,
+): number =>
+  group.isPartial
+    ? group.subCategories.reduce(
+        (total, subCategory) =>
+          total + (totals.get(subCategory.value.toLocaleLowerCase()) ?? 0),
+        0,
+      )
+    : (totals.get(group.value.toLocaleLowerCase()) ?? 0);
+
+/**
  * Calculates the total limit from the provided budget data.
  *
  * @param {IBudget[]} budgetData - Array of budgets.

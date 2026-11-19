@@ -1,14 +1,19 @@
 import { Group, Skeleton, Stack } from "@mantine/core";
 import { IBudget } from "~/models/budget";
 import { buildCategoriesTree, getParentCategory } from "~/helpers/category";
-import { CategoryTypes, ICategoryNode } from "~/models/category";
+import { CategoryTypes } from "~/models/category";
 import { ITransaction } from "~/models/transaction";
 import { buildCategoryToTransactionsTotalMap } from "~/helpers/transactions";
 import BudgetSummaryCard from "./BudgetSummaryCard/BudgetSummaryCard";
 import BudgetsGroup from "./BudgetsGroup/BudgetsGroup";
 import UnbudgetedGroup from "./UnbudgetedGroup/UnbudgetedGroup";
 import EverythingElseCard from "./EverythingElseCard/EverythingElseCard";
-import { isEverythingElseBudget, isTransfer } from "~/helpers/budgets";
+import {
+  buildEverythingElseGroups,
+  getEverythingElseGroupTotal,
+  isEverythingElseBudget,
+  isTransfer,
+} from "~/helpers/budgets";
 import { IRecurringForecastOccurrence } from "~/models/recurringRule";
 import { areStringsEqual, roundAwayFromZero } from "~/helpers/utils";
 import FixParentBudgetButton from "./FixParentBudgetButton/FixParentBudgetButton";
@@ -157,20 +162,28 @@ const BudgetsContent = (props: BudgetsContentProps) => {
   const projectedUnbudgetedIncomeTotal = getProjectedUnbudgetedTotal(true);
   const projectedUnbudgetedExpenseTotal = getProjectedUnbudgetedTotal(false);
 
-  // Everything Else spends whatever the Unbudgeted expenses list holds,
-  // uncategorized included.
-  const sumOverUnbudgetedExpenses = (totals: Map<string, number>): number =>
-    unbudgetedExpenseCategoryTree.reduce(
-      (total: number, category: ICategoryNode) =>
-        total + (totals.get(category.value.toLocaleLowerCase()) ?? 0),
+  // Only what's budgeted counts toward a category's budget: unbudgeted
+  // categories, and the unbudgeted subcategories of budgeted ones, fall into
+  // Everything Else along with uncategorized spending.
+  const isCategoryBudgeted = (category: string): boolean =>
+    categoryBudgets.some((budget) => areStringsEqual(budget.category, category));
+  const everythingElseGroups = buildEverythingElseGroups(
+    categoryTree.filter((category) =>
+      areStringsEqual(category.categoryType, CategoryTypes.Expense),
+    ),
+    isCategoryBudgeted,
+  );
+  const sumEverythingElse = (totals: Map<string, number>): number =>
+    everythingElseGroups.reduce(
+      (total, group) => total + getEverythingElseGroupTotal(group, totals),
       totals.get("") ?? 0,
     );
-  const everythingElseAmount = sumOverUnbudgetedExpenses(
+  const everythingElseAmount = sumEverythingElse(
     categoryToTransactionsTotalMap,
   );
   const everythingElseProjectedAmount =
     everythingElseAmount +
-    sumOverUnbudgetedExpenses(categoryToRecurringForecastTotalMap);
+    sumEverythingElse(categoryToRecurringForecastTotalMap);
 
   const openBudgetDetails = (category: string, month: Date | null) => {
     open();
@@ -247,7 +260,7 @@ const BudgetsContent = (props: BudgetsContentProps) => {
               budgets={everythingElseBudgets}
               amount={everythingElseAmount}
               projectedAmount={everythingElseProjectedAmount}
-              categoryNodes={unbudgetedExpenseCategoryTree}
+              groups={everythingElseGroups}
               categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
               selectedDate={props.selectedDate}
               openDetails={openBudgetDetails}
