@@ -16,7 +16,7 @@ import { useNewTransactions } from "~/providers/NewTransactionsProvider/NewTrans
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
 /**
- * Lists the transactions synced from the user's banks since their last visit.
+ * Lists the synced transactions the user hasn't marked as seen yet.
  */
 const NewTransactionsWidget = (): React.ReactNode => {
   const itemsPerPage = 15;

@@ -130,7 +130,7 @@ export interface IFilters {
   notes: string;
   amountRange: [number | null, number | null];
   tags: string[];
-  /** Only show transactions synced since the user's last visit. */
+  /** Only show synced transactions the user hasn't marked as seen. */
   newOnly: boolean;
 }
 

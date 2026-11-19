@@ -457,14 +457,15 @@ public class ApplicationUserServiceTests
     }
 
     [Fact]
-    public async Task RecordVisitAsync_WhenReturningAfterIdleTimeout_StartsNewVisit()
+    public async Task RecordVisitAsync_WhenReturningAfterBeingAway_KeepsTransactionsNewUntilSeen()
     {
         // Arrange
         var helper = new TestHelper();
+        var newSince = new DateTime(2026, 10, 19, 21, 0, 0, DateTimeKind.Utc);
         var lastActive = new DateTime(2026, 10, 22, 21, 0, 0, DateTimeKind.Utc);
-        var now = lastActive.AddHours(10);
+        var now = lastActive.AddDays(2);
         helper.demoUser.LastActive = lastActive;
-        helper.demoUser.NewTransactionsSince = lastActive.AddDays(-3);
+        helper.demoUser.NewTransactionsSince = newSince;
         helper.UserDataContext.SaveChanges();
         var service = CreateServiceWithNow(helper, now);
 
@@ -472,7 +473,7 @@ public class ApplicationUserServiceTests
         var result = await service.RecordVisitAsync(helper.demoUser.Id);
 
         // Assert
-        result.NewTransactionsSince.Should().Be(lastActive);
+        result.NewTransactionsSince.Should().Be(newSince);
         helper.demoUser.LastActive.Should().Be(now);
     }
 

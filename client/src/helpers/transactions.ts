@@ -176,7 +176,7 @@ export const getTransactionDisplayItems = (
  * @param {ITransaction[]} transactions - Array of transaction objects.
  * @param {Filters} filters - Object containing account, category, date range, merchant name, amount range, and tag filters.
  * @param {ICategory[]} transactionCategories - Array of all categories, used to check for parent categories.
- * @param {(transaction: ITransaction) => boolean} [isNewTransaction] - Tells whether a transaction was synced since the last visit; used by the "new only" filter.
+ * @param {(transaction: ITransaction) => boolean} [isNewTransaction] - Tells whether a transaction is new (synced and not yet marked as seen); used by the "new only" filter.
  * @returns {ITransaction[]} The filtered array of transactions.
  */
 export const getFilteredTransactions = (

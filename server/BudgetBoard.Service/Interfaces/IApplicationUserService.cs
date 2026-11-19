@@ -28,9 +28,9 @@ public interface IApplicationUserService
     Task UpdateApplicationUserAsync(Guid userGuid, IApplicationUserUpdateRequest request);
 
     /// <summary>
-    /// Records that the user is active in the app. If the user has been away longer than
-    /// <see cref="ApplicationUserService.VisitIdleTimeout"/>, a new visit starts and transactions
-    /// synced since the end of the previous visit are marked as new.
+    /// Records that the user is active in the app. Synced transactions stay new until the
+    /// user marks them as seen (see <see cref="MarkTransactionsSeenAsync"/>), however many
+    /// times they come back in between.
     /// </summary>
     /// <param name="userGuid">The unique identifier of the user.</param>
     /// <returns>The time after which synced transactions count as new.</returns>
