@@ -5,6 +5,10 @@ export interface IApplicationUserResponse {
   lastSync: Date;
   /** Synced transactions added after this time are shown as new. */
   newTransactionsSince: string;
+  /** Problems from the most recent SimpleFIN connection; empty when it succeeded. */
+  simpleFinConnectionErrors: string[];
+  /** When (UTC) the current SimpleFIN connection problem was first seen. */
+  simpleFinConnectionErrorDate: string | null;
   twoFactorEnabled: boolean;
   hasOidcLogin: boolean;
   hasLocalLogin: boolean;

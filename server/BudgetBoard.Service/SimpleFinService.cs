@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using BudgetBoard.Database.Data;
@@ -82,9 +82,12 @@ public class SimpleFinService(
             if (simpleFinData == null)
             {
                 logger.LogError("{LogMessage}", logLocalizer["SimpleFinDataNotFoundLog"]);
-                return [responseLocalizer["SimpleFinDataNotFoundError"]];
+                string notFoundError = responseLocalizer["SimpleFinDataNotFoundError"];
+                await SetConnectionErrorAsync(userData, [notFoundError]);
+                return [notFoundError];
             }
 
+            await SetConnectionErrorAsync(userData, simpleFinData.Errors);
             errors.AddRange(simpleFinData.Errors);
 
             if (simpleFinData.Accounts.Any())
@@ -98,6 +101,7 @@ public class SimpleFinService(
         }
         catch (BudgetBoardServiceException bbex)
         {
+            await SetConnectionErrorAsync(userData, [bbex.Message]);
             return [bbex.Message];
         }
     }
@@ -108,6 +112,8 @@ public class SimpleFinService(
         var userData = await GetCurrentUserAsync(userGuid);
 
         userData.SimpleFinAccessToken = string.Empty;
+        userData.SimpleFinConnectionError = null;
+        userData.SimpleFinConnectionErrorDate = null;
 
         userDataContext.Update(userData);
         await userDataContext.SaveChangesAsync();
@@ -152,8 +158,12 @@ public class SimpleFinService(
             if (simpleFinData == null)
             {
                 logger.LogError("{LogMessage}", logLocalizer["SimpleFinDataNotFoundLog"]);
-                return [responseLocalizer["SimpleFinDataNotFoundError"]];
+                string notFoundError = responseLocalizer["SimpleFinDataNotFoundError"];
+                await SetConnectionErrorAsync(userData, [notFoundError]);
+                return [notFoundError];
             }
+
+            await SetConnectionErrorAsync(userData, simpleFinData.Errors);
 
             List<string> errors = [.. simpleFinData.Errors];
 
@@ -166,6 +176,7 @@ public class SimpleFinService(
         }
         catch (BudgetBoardServiceException bbex)
         {
+            await SetConnectionErrorAsync(userData, [bbex.Message]);
             return [bbex.Message];
         }
         catch (Exception ex)
@@ -176,6 +187,43 @@ public class SimpleFinService(
                 logLocalizer["SimpleFinDataRetrievalErrorLog", ex.Message]
             );
             return [responseLocalizer["SimpleFinDataRetrievalError"]];
+        }
+    }
+
+    /// <summary>
+    /// Records the outcome of the latest SimpleFIN connection so the client can alert the user.
+    /// An empty list clears any previous connection problem.
+    /// </summary>
+    private async Task SetConnectionErrorAsync(ApplicationUser userData, IEnumerable<string> errors)
+    {
+        var distinctErrors = errors
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e.Replace('\n', ' ').Trim())
+            .Distinct()
+            .ToList();
+        var connectionError = distinctErrors.Count > 0 ? string.Join('\n', distinctErrors) : null;
+
+        if (userData.SimpleFinConnectionError == connectionError)
+        {
+            return;
+        }
+
+        // Keep the original date while the same problem persists so a dismissed alert stays dismissed.
+        userData.SimpleFinConnectionError = connectionError;
+        userData.SimpleFinConnectionErrorDate = connectionError is null ? null : nowProvider.UtcNow;
+
+        try
+        {
+            await userDataContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Recording the alert must never break the sync itself.
+            logger.LogWarning(
+                ex,
+                "{LogMessage}",
+                logLocalizer["SimpleFinConnectionStatusSaveErrorLog", ex.Message]
+            );
         }
     }
 
@@ -190,13 +238,13 @@ public class SimpleFinService(
             users =>
                 users
                     .Include(u => u.Accounts)
-                    .ThenInclude(a => a.Transactions)
+                        .ThenInclude(a => a.Transactions)
                     .Include(u => u.Accounts)
-                    .ThenInclude(a => a.Balances)
+                        .ThenInclude(a => a.Balances)
                     .Include(u => u.Institutions)
                     .Include(u => u.UserSettings)
                     .Include(u => u.SimpleFinOrganizations)
-                    .ThenInclude(o => o.Accounts)
+                        .ThenInclude(o => o.Accounts)
                     .Include(u => u.SimpleFinAccounts)
                     .Include(u => u.TransactionCategories)
         );
@@ -347,6 +395,24 @@ public class SimpleFinService(
             startDate,
             includeTransactions
         );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var statusCode = (int)response.StatusCode;
+            logger.LogError(
+                "{LogMessage}",
+                logLocalizer["SimpleFinUnexpectedStatusLog", statusCode]
+            );
+
+            // SimpleFIN responds with 401/402/403 when the access URL is revoked or the
+            // subscription has lapsed. The user needs to reconnect in that case.
+            throw new BudgetBoardServiceException(
+                statusCode is 401 or 402 or 403
+                    ? responseLocalizer["SimpleFinAccessDeniedError"]
+                    : responseLocalizer["SimpleFinUnexpectedStatusError", statusCode]
+            );
+        }
+
         var jsonString = await response.Content.ReadAsStringAsync();
 
         try

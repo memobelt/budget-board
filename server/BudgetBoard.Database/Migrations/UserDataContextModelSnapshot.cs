@@ -17,7 +17,7 @@ namespace BudgetBoard.Database.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -175,6 +175,12 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<string>("SimpleFinAccessToken")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("SimpleFinConnectionError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("SimpleFinConnectionErrorDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");

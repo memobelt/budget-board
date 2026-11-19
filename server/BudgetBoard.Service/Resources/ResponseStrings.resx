@@ -361,6 +361,12 @@
     <data name="SimpleFinDataRequestError" xml:space="preserve">
         <value>An error occurred while requesting SimpleFIN data.</value>
     </data>
+    <data name="SimpleFinAccessDeniedError" xml:space="preserve">
+        <value>SimpleFIN denied access to your accounts. Your access may have been revoked or your SimpleFIN subscription may have expired. Reconnect SimpleFIN on the External Accounts page.</value>
+    </data>
+    <data name="SimpleFinUnexpectedStatusError" xml:space="preserve">
+        <value>SimpleFIN could not be reached (status {0}). Try syncing again later.</value>
+    </data>
     <data name="SimpleFinDataRetrievalError" xml:space="preserve">
         <value>An error occurred while retrieving SimpleFIN data.</value>
     </data>

@@ -26,6 +26,8 @@ public interface IApplicationUserResponse
     bool LunchFlowApiKey { get; }
     DateTime LastSync { get; }
     DateTime NewTransactionsSince { get; }
+    IReadOnlyList<string> SimpleFinConnectionErrors { get; }
+    DateTime? SimpleFinConnectionErrorDate { get; }
     bool TwoFactorEnabled { get; }
     bool HasOidcLogin { get; }
     bool HasLocalLogin { get; }
@@ -42,6 +44,14 @@ public class ApplicationUserResponse(
     public bool LunchFlowApiKey { get; set; } = user.LunchFlowApiKey != string.Empty;
     public DateTime LastSync { get; set; } = user.LastSync;
     public DateTime NewTransactionsSince { get; set; } = user.NewTransactionsSince;
+    public IReadOnlyList<string> SimpleFinConnectionErrors { get; set; } =
+        string.IsNullOrWhiteSpace(user.SimpleFinConnectionError)
+            ? []
+            : user.SimpleFinConnectionError.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
+    public DateTime? SimpleFinConnectionErrorDate { get; set; } = user.SimpleFinConnectionErrorDate;
     public bool TwoFactorEnabled { get; set; } = user.TwoFactorEnabled;
     public bool HasOidcLogin { get; set; } = hasOidcLogin;
     public bool HasLocalLogin { get; set; } = hasLocalLogin;

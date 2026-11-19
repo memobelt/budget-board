@@ -4,6 +4,7 @@ import { AxiosError, AxiosResponse } from "axios";
 import { useTranslation } from "react-i18next";
 import {
   accountsQueryKey,
+  applicationUserQueryKey,
   goalsQueryKey,
   institutionsQueryKey,
   lunchFlowAccountQueryKey,
@@ -35,6 +36,10 @@ export const useSyncMutation = () => {
       });
       await queryClient.invalidateQueries({
         queryKey: [lunchFlowAccountQueryKey],
+      });
+      // Refresh the SimpleFIN connection status shown in the connection alert.
+      await queryClient.invalidateQueries({
+        queryKey: [applicationUserQueryKey],
       });
       if ((data.data?.length ?? 0) > 0) {
         data.data?.forEach((error: SyncError) =>

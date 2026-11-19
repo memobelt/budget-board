@@ -1,4 +1,4 @@
-using Bogus;
+﻿using Bogus;
 using BudgetBoard.Database.Models;
 using BudgetBoard.Service;
 using BudgetBoard.Service.Helpers;
@@ -456,7 +456,7 @@ public class SimpleFinServiceTests
     }
 
     [Fact]
-    public async Task RefreshAccountsAsync_WhenAccessTokenIsInvalid_ShouldReturnSimpleFinDataNotFoundError()
+    public async Task RefreshAccountsAsync_WhenAccessTokenIsInvalid_ShouldReturnSimpleFinAccessDeniedError()
     {
         // Arrange
         var helper = new TestHelper();
@@ -508,7 +508,7 @@ public class SimpleFinServiceTests
 
         // Assert
         errors.Should().NotBeEmpty();
-        errors.Should().Contain("SimpleFinDataNotFoundError");
+        errors.Should().Contain("SimpleFinAccessDeniedError");
     }
 
     [Fact]
@@ -3494,4 +3494,222 @@ public class SimpleFinServiceTests
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
             GetEnumerator();
     }
+
+    #region Connection errors
+    private static SimpleFinService CreateServiceWithResponse(
+        TestHelper helper,
+        System.Net.HttpStatusCode statusCode,
+        string content,
+        INowProvider? nowProvider = null
+    )
+    {
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ReturnsAsync(() =>
+                new HttpResponseMessage
+                {
+                    StatusCode = statusCode,
+                    Content = new StringContent(content),
+                }
+            );
+
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
+        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        httpClientFactoryMock.Setup(_ => _.CreateClient(string.Empty)).Returns(httpClient);
+
+        helper.demoUser.SimpleFinAccessToken = "https://user:pass@test.com/simplefin";
+        helper.UserDataContext.SaveChanges();
+
+        return new SimpleFinService(
+            httpClientFactoryMock.Object,
+            helper.UserDataContext,
+            Mock.Of<ILogger<ISimpleFinService>>(),
+            nowProvider ?? Mock.Of<INowProvider>(),
+            Mock.Of<IAccountService>(),
+            Mock.Of<ITransactionService>(),
+            Mock.Of<IBalanceService>(),
+            Mock.Of<ISimpleFinOrganizationService>(),
+            Mock.Of<ISimpleFinAccountService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>()
+        );
+    }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Unauthorized)]
+    [InlineData(System.Net.HttpStatusCode.PaymentRequired)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden)]
+    public async Task RefreshAccountsAsync_WhenAccessIsDenied_ShouldRecordConnectionError(
+        System.Net.HttpStatusCode statusCode
+    )
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var now = new DateTime(2026, 10, 26, 12, 0, 0, DateTimeKind.Utc);
+        var nowProvider = Mock.Of<INowProvider>(n => n.UtcNow == now);
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            statusCode,
+            "Forbidden",
+            nowProvider
+        );
+
+        // Act
+        var errors = await simpleFinService.RefreshAccountsAsync(helper.demoUser.Id);
+
+        // Assert
+        errors.Should().ContainSingle().Which.Should().Be("SimpleFinAccessDeniedError");
+        var user = helper.UserDataContext.Users.Single();
+        user.SimpleFinConnectionError.Should().Be("SimpleFinAccessDeniedError");
+        user.SimpleFinConnectionErrorDate.Should().Be(now);
+    }
+
+    [Fact]
+    public async Task RefreshAccountsAsync_WhenServerErrors_ShouldRecordUnexpectedStatusError()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.ServiceUnavailable,
+            "Down"
+        );
+
+        // Act
+        var errors = await simpleFinService.RefreshAccountsAsync(helper.demoUser.Id);
+
+        // Assert
+        errors.Should().ContainSingle().Which.Should().Be("SimpleFinUnexpectedStatusError [503]");
+        helper
+            .UserDataContext.Users.Single()
+            .SimpleFinConnectionError.Should()
+            .Be("SimpleFinUnexpectedStatusError [503]");
+    }
+
+    [Fact]
+    public async Task RefreshAccountsAsync_WhenSimpleFinReportsErrors_ShouldRecordEachAsConnectionError()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.OK,
+            @"{ ""errors"": [""Connection to Bank A may need attention"", ""Connection to Bank B may need attention""], ""accounts"": [] }"
+        );
+
+        // Act
+        await simpleFinService.RefreshAccountsAsync(helper.demoUser.Id);
+
+        // Assert
+        var user = helper.UserDataContext.Users.Single();
+        new ApplicationUserResponse(user)
+            .SimpleFinConnectionErrors.Should()
+            .Equal(
+                "Connection to Bank A may need attention",
+                "Connection to Bank B may need attention"
+            );
+    }
+
+    [Fact]
+    public async Task RefreshAccountsAsync_WhenConnectionRecovers_ShouldClearConnectionError()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        helper.demoUser.SimpleFinConnectionError = "SimpleFinAccessDeniedError";
+        helper.demoUser.SimpleFinConnectionErrorDate = DateTime.UtcNow;
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.OK,
+            @"{ ""errors"": [], ""accounts"": [] }"
+        );
+
+        // Act
+        var errors = await simpleFinService.RefreshAccountsAsync(helper.demoUser.Id);
+
+        // Assert
+        errors.Should().BeEmpty();
+        var user = helper.UserDataContext.Users.Single();
+        user.SimpleFinConnectionError.Should().BeNull();
+        user.SimpleFinConnectionErrorDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshAccountsAsync_WhenSameErrorPersists_ShouldKeepOriginalErrorDate()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var firstSeen = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        helper.demoUser.SimpleFinConnectionError = "SimpleFinAccessDeniedError";
+        helper.demoUser.SimpleFinConnectionErrorDate = firstSeen;
+        var nowProvider = Mock.Of<INowProvider>(n =>
+            n.UtcNow == new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc)
+        );
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.Forbidden,
+            "Forbidden",
+            nowProvider
+        );
+
+        // Act
+        await simpleFinService.RefreshAccountsAsync(helper.demoUser.Id);
+
+        // Assert
+        helper.UserDataContext.Users.Single().SimpleFinConnectionErrorDate.Should().Be(firstSeen);
+    }
+
+    [Fact]
+    public async Task SyncTransactionHistoryAsync_WhenAccessIsDenied_ShouldRecordConnectionError()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var nowProvider = Mock.Of<INowProvider>(n =>
+            n.UtcNow == new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc)
+        );
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.Forbidden,
+            "Forbidden",
+            nowProvider
+        );
+
+        // Act
+        var errors = await simpleFinService.SyncTransactionHistoryAsync(helper.demoUser.Id);
+
+        // Assert
+        errors.Should().ContainSingle().Which.Should().Be("SimpleFinAccessDeniedError");
+        helper
+            .UserDataContext.Users.Single()
+            .SimpleFinConnectionError.Should()
+            .Be("SimpleFinAccessDeniedError");
+    }
+
+    [Fact]
+    public async Task RemoveAccessTokenAsync_WhenConnectionErrorExists_ShouldClearIt()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        helper.demoUser.SimpleFinConnectionError = "SimpleFinAccessDeniedError";
+        helper.demoUser.SimpleFinConnectionErrorDate = DateTime.UtcNow;
+        var simpleFinService = CreateServiceWithResponse(
+            helper,
+            System.Net.HttpStatusCode.OK,
+            "{}"
+        );
+
+        // Act
+        await simpleFinService.RemoveAccessTokenAsync(helper.demoUser.Id);
+
+        // Assert
+        var user = helper.UserDataContext.Users.Single();
+        user.SimpleFinConnectionError.Should().BeNull();
+        user.SimpleFinConnectionErrorDate.Should().BeNull();
+    }
+    #endregion
 }
