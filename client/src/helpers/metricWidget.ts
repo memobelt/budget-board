@@ -20,6 +20,7 @@ import {
   MetricToken,
 } from "~/models/metricWidget";
 import { CategoryTypes, ITransactionCategory } from "~/models/category";
+import { IRecurringForecastOccurrence } from "~/models/recurringRule";
 import { convertNumberToCurrency, SignDisplay } from "~/helpers/currency";
 import { getGoalCurrentAmount, getGoalTargetAmount } from "~/helpers/goals";
 import { filterVisibleAccounts, getAccountsOfTypes } from "~/helpers/accounts";
@@ -451,6 +452,8 @@ export interface MetricDataContext {
   getCategoryType: (category: string) => string;
   /** All transaction categories; needed to work out Everything Else's spending. */
   transactionCategories?: ITransactionCategory[];
+  /** Recurring transactions still expected in the budget months. */
+  forecastOccurrences?: IRecurringForecastOccurrence[];
   preferredCurrency: string;
   decimalPlaces: number;
   intlLocale: string;
@@ -619,8 +622,31 @@ function resolveBudgets(
   switch (metric) {
     case "spent":
       return spent;
-    case "remaining":
-      return Math.max(0, available - spent);
+    case "remaining": {
+      if (!isEverythingElse) {
+        return Math.max(0, available - spent);
+      }
+      // Everything Else's remaining is after the recurring transactions still
+      // expected in the period that would fall into it.
+      const expected = (ctx.forecastOccurrences ?? [])
+        .filter((occurrence) =>
+          isInResolvedPeriod(getDateOnly(occurrence.date), period),
+        )
+        .filter((occurrence) =>
+          isEverythingElseTransaction(
+            occurrence,
+            budgetsInPeriod.filter(
+              (b) => getMonthKey(b.month) === getMonthKey(occurrence.date),
+            ),
+            ctx.transactionCategories ?? [],
+          ),
+        )
+        .reduce((n, occurrence) => n + occurrence.amount, 0);
+      const projectedSpent = Math.abs(
+        txs.reduce((n, t) => n + t.amount, 0) + expected,
+      );
+      return Math.max(0, available - projectedSpent);
+    }
     case "percent_used":
       if (available > 0) {
         return (spent / available) * 100;

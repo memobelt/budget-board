@@ -18,6 +18,7 @@ import MetricWidgetSettings from "./MetricWidgetSettings/MetricWidgetSettings";
 import { useAccountsQuery } from "~/hooks/queries/useAccountsQuery";
 import { useAccountTypes } from "~/providers/AccountTypeProvider/AccountTypeProvider";
 import { useBudgetsQuery } from "~/hooks/queries/useBudgetsQuery";
+import { useRecurringForecastQueries } from "~/hooks/queries/useRecurringForecastQueries";
 import { useGoalsQuery } from "~/hooks/queries/useGoalsQuery";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { useWidgetSettingsQuery } from "~/hooks/queries/useWidgetSettingsQuery";
@@ -110,6 +111,12 @@ const MetricWidget = ({
     enabled: requirements.needsBudgets,
   });
 
+  // Recurring transactions still expected, for Everything Else's remaining.
+  const forecastQueries = useRecurringForecastQueries({
+    months: requirements.budgetMonths,
+    enabled: requirements.needsBudgets,
+  });
+
   const goalsQuery = useGoalsQuery({
     includeInterest: false,
     enabled: requirements.needsGoals,
@@ -126,7 +133,8 @@ const MetricWidget = ({
       (requirements.needsAllTimeTransactions
         ? allTimeTransactionsQuery.isPending
         : transactionMonthQueries.isPending)) ||
-    (requirements.needsBudgets && budgetQueries.isPending) ||
+    (requirements.needsBudgets &&
+      (budgetQueries.isPending || forecastQueries.isPending)) ||
     (requirements.needsGoals && goalsQuery.isPending) ||
     (requirements.needsAccounts &&
       (accountsQuery.isPending || accountTypesPending));
@@ -142,6 +150,7 @@ const MetricWidget = ({
       accountTypes: allAccountTypes ?? [],
       getCategoryType,
       transactionCategories: allTransactionCategories,
+      forecastOccurrences: forecastQueries.data,
       preferredCurrency,
       decimalPlaces,
       intlLocale,
@@ -156,6 +165,7 @@ const MetricWidget = ({
       allAccountTypes,
       getCategoryType,
       allTransactionCategories,
+      forecastQueries.data,
       preferredCurrency,
       decimalPlaces,
       intlLocale,
