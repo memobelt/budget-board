@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using BudgetBoard.Database.Data;
 using BudgetBoard.Database.Models;
@@ -376,23 +377,53 @@ public class LunchFlowService(
                     .. userAccount.Transactions.OrderByDescending(t => t.Date),
                 ];
 
-                // SyncStartDate allows the user to specify a date from which to start syncing transactions.
-                // If it is unset, all transactions will be synced.
-                var transactionsToSync = lunchFlowTransactionsData.Transactions.Where(t =>
-                    !lunchFlowAccount.SyncStartDate.HasValue
-                    || DateOnly.Parse(t.Date) >= lunchFlowAccount.SyncStartDate.Value
-                );
-
                 var receivedCount = lunchFlowTransactionsData.Transactions.Count();
                 var createdCount = 0;
                 var existingCount = 0;
                 var matchedCount = 0;
+                var skippedCount = 0;
+                var accountName = userAccount.Name;
 
-                foreach (var transaction in transactionsToSync)
+                void LogTransaction(
+                    ILunchFlowTransactionData transaction,
+                    string status,
+                    decimal? savedAmount
+                ) =>
+                    logger.LogTransactionSync(
+                        logLocalizer[
+                            "LunchFlowTransactionSyncedLog",
+                            status,
+                            accountName,
+                            transaction.Date,
+                            transaction.Merchant ?? transaction.Description ?? string.Empty,
+                            transaction.Amount,
+                            savedAmount?.ToString(CultureInfo.InvariantCulture) ?? "-",
+                            transaction.IsPending?.ToString() ?? "unknown",
+                            transaction.ID
+                        ]
+                    );
+
+                foreach (var transaction in lunchFlowTransactionsData.Transactions)
                 {
-                    if (userTransactions.Any(t => t.SyncID != null && t.SyncID == transaction.ID))
+                    // SyncStartDate allows the user to specify a date from which to start syncing transactions.
+                    // If it is unset, all transactions will be synced.
+                    if (
+                        lunchFlowAccount.SyncStartDate.HasValue
+                        && DateOnly.Parse(transaction.Date) < lunchFlowAccount.SyncStartDate.Value
+                    )
+                    {
+                        skippedCount++;
+                        LogTransaction(transaction, "skipped (before sync start date)", null);
+                        continue;
+                    }
+
+                    var existingTransaction = userTransactions.FirstOrDefault(t =>
+                        t.SyncID != null && t.SyncID == transaction.ID
+                    );
+                    if (existingTransaction != null)
                     {
                         existingCount++;
+                        LogTransaction(transaction, "already synced", existingTransaction.Amount);
                         continue;
                     }
 
@@ -411,6 +442,7 @@ public class LunchFlowService(
                             transaction.Merchant
                         );
                         matchedCount++;
+                        LogTransaction(transaction, "linked to manual entry", manualMatch.Amount);
                         continue;
                     }
 
@@ -427,19 +459,7 @@ public class LunchFlowService(
                         }
                     );
                     createdCount++;
-
-                    logger.LogTransactionSync(
-                        logLocalizer[
-                            "LunchFlowTransactionSyncedLog",
-                            transaction.ID,
-                            userAccount.Name,
-                            transaction.Amount,
-                            transaction.Date,
-                            transaction.IsPending?.ToString() ?? "unknown",
-                            transaction.Merchant ?? string.Empty,
-                            transaction.Description ?? string.Empty
-                        ]
-                    );
+                    LogTransaction(transaction, "new", transaction.Amount);
                 }
 
                 if (matchedCount > 0)
@@ -454,7 +474,7 @@ public class LunchFlowService(
                         receivedCount,
                         createdCount,
                         existingCount + matchedCount,
-                        receivedCount - createdCount - existingCount - matchedCount
+                        skippedCount
                     ]
                 );
             }

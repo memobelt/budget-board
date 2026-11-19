@@ -662,33 +662,69 @@ public class SimpleFinService(
             .. userAccount.Transactions.OrderByDescending(t => t.Date),
         ];
 
-        // SyncStartDate allows the user to specify a date from which to start syncing transactions.
-        // If it is unset, all transactions will be synced.
-        var transactionsToSync = transactionsData.Where(t =>
-            !simpleFinAccount.SyncStartDate.HasValue
-            || DateOnly.FromDateTime(
-                DateTime.UnixEpoch.AddSeconds(t.Pending ? t.TransactedAt : t.Posted)
-            ) >= simpleFinAccount.SyncStartDate.Value
-        );
-
         var receivedCount = transactionsData.Count();
         var createdCount = 0;
         var existingCount = 0;
         var matchedCount = 0;
+        var skippedCount = 0;
+        var accountName = userAccount.Name;
 
-        foreach (var transactionData in transactionsToSync)
+        void LogTransaction(
+            ISimpleFinTransactionData transactionData,
+            string status,
+            decimal? savedAmount
+        ) =>
+            logger.LogTransactionSync(
+                logLocalizer[
+                    "SimpleFinTransactionSyncedLog",
+                    status,
+                    accountName,
+                    DateOnly.FromDateTime(
+                        DateTime.UnixEpoch.AddSeconds(
+                            transactionData.Pending
+                                ? transactionData.TransactedAt
+                                : transactionData.Posted
+                        )
+                    ),
+                    transactionData.Description,
+                    transactionData.Amount,
+                    savedAmount?.ToString(CultureInfo.InvariantCulture) ?? "-",
+                    transactionData.Pending,
+                    transactionData.Id
+                ]
+            );
+
+        foreach (var transactionData in transactionsData)
         {
+            // SyncStartDate allows the user to specify a date from which to start syncing transactions.
+            // If it is unset, all transactions will be synced.
             if (
-                userTransactions.Any(t =>
-                    (t.SyncID ?? string.Empty).Equals(
-                        transactionData.Id,
-                        StringComparison.InvariantCulture
+                simpleFinAccount.SyncStartDate.HasValue
+                && DateOnly.FromDateTime(
+                    DateTime.UnixEpoch.AddSeconds(
+                        transactionData.Pending
+                            ? transactionData.TransactedAt
+                            : transactionData.Posted
                     )
-                )
+                ) < simpleFinAccount.SyncStartDate.Value
             )
+            {
+                skippedCount++;
+                LogTransaction(transactionData, "skipped (before sync start date)", null);
+                continue;
+            }
+
+            var existingTransaction = userTransactions.FirstOrDefault(t =>
+                (t.SyncID ?? string.Empty).Equals(
+                    transactionData.Id,
+                    StringComparison.InvariantCulture
+                )
+            );
+            if (existingTransaction != null)
             {
                 // Transaction already exists.
                 existingCount++;
+                LogTransaction(transactionData, "already synced", existingTransaction.Amount);
                 continue;
             }
 
@@ -721,24 +757,13 @@ public class SimpleFinService(
                     transactionData.Description
                 );
                 matchedCount++;
+                LogTransaction(transactionData, "linked to manual entry", manualMatch.Amount);
                 continue;
             }
 
             await transactionService.CreateTransactionAsync(userData, newTransaction);
             createdCount++;
-
-            logger.LogTransactionSync(
-                logLocalizer[
-                    "SimpleFinTransactionSyncedLog",
-                    transactionData.Id,
-                    userAccount.Name,
-                    transactionData.Amount,
-                    newTransaction.Amount,
-                    newTransaction.Date,
-                    transactionData.Pending,
-                    transactionData.Description
-                ]
-            );
+            LogTransaction(transactionData, "new", newTransaction.Amount);
         }
 
         if (matchedCount > 0)
@@ -753,7 +778,7 @@ public class SimpleFinService(
                 receivedCount,
                 createdCount,
                 existingCount + matchedCount,
-                receivedCount - createdCount - existingCount - matchedCount
+                skippedCount
             ]
         );
 
