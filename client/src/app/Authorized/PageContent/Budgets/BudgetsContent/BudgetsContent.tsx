@@ -1,13 +1,15 @@
 import { Group, Skeleton, Stack } from "@mantine/core";
 import { IBudget } from "~/models/budget";
 import { buildCategoriesTree, getParentCategory } from "~/helpers/category";
-import { CategoryTypes } from "~/models/category";
+import { CategoryTypes, ICategoryNode } from "~/models/category";
 import { ITransaction } from "~/models/transaction";
 import { buildCategoryToTransactionsTotalMap } from "~/helpers/transactions";
 import BudgetSummaryCard from "./BudgetSummaryCard/BudgetSummaryCard";
 import BudgetsGroup from "./BudgetsGroup/BudgetsGroup";
 import UnbudgetedGroup from "./UnbudgetedGroup/UnbudgetedGroup";
-import { areStringsEqual } from "~/helpers/utils";
+import EverythingElseCard from "./EverythingElseCard/EverythingElseCard";
+import { isEverythingElseBudget } from "~/helpers/budgets";
+import { areStringsEqual, roundAwayFromZero } from "~/helpers/utils";
 import FixParentBudgetButton from "./FixParentBudgetButton/FixParentBudgetButton";
 import BudgetDetails from "./BudgetDetails/BudgetDetails";
 import React from "react";
@@ -90,9 +92,16 @@ const BudgetsContent = (props: BudgetsContentProps) => {
       ),
   );
 
+  // Everything Else isn't a transaction category, so it must not count as
+  // budgeting one.
+  const everythingElseBudgets = props.budgets.filter(isEverythingElseBudget);
+  const categoryBudgets = props.budgets.filter(
+    (budget) => !isEverythingElseBudget(budget),
+  );
+
   const unbudgetedCategoryTree = categoryTree.filter(
     (category) =>
-      !props.budgets.some((budget) =>
+      !categoryBudgets.some((budget) =>
         areStringsEqual(
           getParentCategory(budget.category, allTransactionCategories),
           getParentCategory(category.value, allTransactionCategories),
@@ -107,20 +116,51 @@ const BudgetsContent = (props: BudgetsContentProps) => {
   const unbudgetedExpenseCategoryTree = unbudgetedCategoryTree.filter((c) =>
     areStringsEqual(c.categoryType, CategoryTypes.Expense),
   );
+  const hasUnbudgetedIncome = unbudgetedIncomeCategoryTree.some(
+    (category) =>
+      roundAwayFromZero(
+        categoryToTransactionsTotalMap.get(
+          category.value.toLocaleLowerCase(),
+        ) ?? 0,
+      ) !== 0,
+  );
 
   const isBudgetedCategory = (category: string): boolean =>
-    props.budgets.some((budget) =>
+    categoryBudgets.some((budget) =>
       areStringsEqual(
         getParentCategory(budget.category, allTransactionCategories),
         getParentCategory(category, allTransactionCategories),
       ),
     );
 
-  const projectedUnbudgetedTransactionsTotal =
+  const getProjectedUnbudgetedTotal = (isIncome: boolean): number =>
     summaryForecastOccurrences.reduce((total, occurrence) => {
       const category = occurrence.category ?? occurrence.subcategory ?? "";
-      return isBudgetedCategory(category) ? total : total + occurrence.amount;
+      const occurrenceIsIncome = areStringsEqual(
+        getCategoryType(category),
+        CategoryTypes.Income,
+      );
+      return isBudgetedCategory(category) || occurrenceIsIncome !== isIncome
+        ? total
+        : total + occurrence.amount;
     }, 0);
+  const projectedUnbudgetedIncomeTotal = getProjectedUnbudgetedTotal(true);
+  const projectedUnbudgetedExpenseTotal = getProjectedUnbudgetedTotal(false);
+
+  // Everything Else spends whatever the Unbudgeted expenses list holds,
+  // uncategorized included.
+  const sumOverUnbudgetedExpenses = (totals: Map<string, number>): number =>
+    unbudgetedExpenseCategoryTree.reduce(
+      (total: number, category: ICategoryNode) =>
+        total + (totals.get(category.value.toLocaleLowerCase()) ?? 0),
+      totals.get("") ?? 0,
+    );
+  const everythingElseAmount = sumOverUnbudgetedExpenses(
+    categoryToTransactionsTotalMap,
+  );
+  const everythingElseProjectedAmount =
+    everythingElseAmount +
+    sumOverUnbudgetedExpenses(categoryToRecurringForecastTotalMap);
 
   const openBudgetDetails = (category: string, month: Date | null) => {
     open();
@@ -158,12 +198,15 @@ const BudgetsContent = (props: BudgetsContentProps) => {
           {props.isPending ? (
             <Skeleton h={65} radius="md" />
           ) : (
-            <UnbudgetedGroup
-              categoryTree={unbudgetedIncomeCategoryTree}
-              categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
-              selectedDate={props.selectedDate}
-              openDetails={openBudgetDetails}
-            />
+            // Only shown when there is income without a budget to list.
+            hasUnbudgetedIncome && (
+              <UnbudgetedGroup
+                categoryTree={unbudgetedIncomeCategoryTree}
+                categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
+                selectedDate={props.selectedDate}
+                openDetails={openBudgetDetails}
+              />
+            )
           )}
         </Stack>
         <Stack gap="0.5rem">
@@ -173,26 +216,31 @@ const BudgetsContent = (props: BudgetsContentProps) => {
           {props.isPending ? (
             <Skeleton h={65} radius="md" />
           ) : (
-            <BudgetsGroup
-              budgets={expenseBudgets}
-              categoryNodes={expenseCategoryTree}
-              categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
-              categoryToRecurringForecastTotalMap={
-                categoryToRecurringForecastTotalMap
-              }
-              selectedDate={props.selectedDate}
-              openDetails={openBudgetDetails}
-            />
+            // Everything Else is always shown, so skip the empty placeholder.
+            expenseBudgets.length > 0 && (
+              <BudgetsGroup
+                budgets={expenseBudgets}
+                categoryNodes={expenseCategoryTree}
+                categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
+                categoryToRecurringForecastTotalMap={
+                  categoryToRecurringForecastTotalMap
+                }
+                selectedDate={props.selectedDate}
+                openDetails={openBudgetDetails}
+              />
+            )
           )}
           {props.isPending ? (
             <Skeleton h={65} radius="md" />
           ) : (
-            <UnbudgetedGroup
-              categoryTree={unbudgetedExpenseCategoryTree}
+            <EverythingElseCard
+              budgets={everythingElseBudgets}
+              amount={everythingElseAmount}
+              projectedAmount={everythingElseProjectedAmount}
+              categoryNodes={unbudgetedExpenseCategoryTree}
               categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
               selectedDate={props.selectedDate}
               openDetails={openBudgetDetails}
-              showUncategorized
             />
           )}
         </Stack>
@@ -213,9 +261,9 @@ const BudgetsContent = (props: BudgetsContentProps) => {
           }
           unbudgetedIncomeCategoryTree={unbudgetedIncomeCategoryTree}
           unbudgetedExpenseCategoryTree={unbudgetedExpenseCategoryTree}
-          projectedUnbudgetedTransactionsTotal={
-            projectedUnbudgetedTransactionsTotal
-          }
+          everythingElseBudgets={everythingElseBudgets}
+          projectedUnbudgetedIncomeTotal={projectedUnbudgetedIncomeTotal}
+          projectedUnbudgetedExpenseTotal={projectedUnbudgetedExpenseTotal}
           isPending={
             (props.isPending ?? false) ||
             (props.isTransactionsPending ?? false) ||

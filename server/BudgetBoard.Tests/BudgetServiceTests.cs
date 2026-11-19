@@ -14,6 +14,18 @@ namespace BudgetBoard.IntegrationTests;
 [Collection("IntegrationTests")]
 public class BudgetServiceTests
 {
+    /// <summary>
+    /// Reads a month's budgets without the automatic Everything Else, for tests about other budgets.
+    /// </summary>
+    private static async Task<List<IBudgetResponse>> ReadCategoryBudgetsAsync(
+        IBudgetService budgetService,
+        Guid userId,
+        DateOnly month
+    ) =>
+        (await budgetService.ReadBudgetsAsync(userId, month))
+            .Where(b => !BudgetConstants.IsEverythingElse(b.Category))
+            .ToList();
+
     #region CreateBudgetsAsync
     [Fact]
     public async Task CreateBudgetsAsync_WhenValidData_ShouldCreateBudget()
@@ -597,7 +609,8 @@ public class BudgetServiceTests
         var now = DateTime.Now;
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
             helper.demoUser.Id,
             DateOnly.FromDateTime(now)
         );
@@ -700,7 +713,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Should().ContainSingle();
@@ -725,7 +742,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Single().Rollover.Should().Be(-100);
@@ -754,7 +775,7 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, april);
+        var readBudgets = await ReadCategoryBudgetsAsync(budgetService, helper.demoUser.Id, april);
 
         // Assert
         // (400 - 250) + (400 - 500) + (400 - 600)
@@ -781,7 +802,7 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, march);
+        var readBudgets = await ReadCategoryBudgetsAsync(budgetService, helper.demoUser.Id, march);
 
         // Assert
         // Only February counts; January's unspent 400 is before the start month.
@@ -811,12 +832,12 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var fromJanuary = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, april);
+        var fromJanuary = await ReadCategoryBudgetsAsync(budgetService, helper.demoUser.Id, april);
 
         aprilBudget.RolloverStartMonth = march;
         helper.UserDataContext.SaveChanges();
 
-        var fromMarch = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, april);
+        var fromMarch = await ReadCategoryBudgetsAsync(budgetService, helper.demoUser.Id, april);
 
         // Assert
         // (400-100) + (400-200) + (400-300)
@@ -845,7 +866,7 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, march);
+        var readBudgets = await ReadCategoryBudgetsAsync(budgetService, helper.demoUser.Id, march);
 
         // Assert
         // February is unbudgeted, so its spending does not count against the balance.
@@ -869,7 +890,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Single().Rollover.Should().Be(0);
@@ -892,7 +917,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Single().Rollover.Should().Be(150);
@@ -915,7 +944,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Single().Rollover.Should().Be(0);
@@ -942,7 +975,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         readBudgets.Single().Rollover.Should().Be(300);
@@ -1118,7 +1155,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         var parent = readBudgets.Single(b => b.Category == RolloverParentCategory);
@@ -1162,7 +1203,11 @@ public class BudgetServiceTests
         helper.UserDataContext.SaveChanges();
 
         // Act
-        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+        var readBudgets = await ReadCategoryBudgetsAsync(
+            budgetService,
+            helper.demoUser.Id,
+            february
+        );
 
         // Assert
         var parent = readBudgets.Single(b => b.Category == RolloverParentCategory);
@@ -1293,6 +1338,311 @@ public class BudgetServiceTests
 
         // Assert
         parentBudget.RolloverStartMonth.Should().Be(january);
+    }
+    #endregion
+
+    #region EverythingElse
+    private static Budget AddBudget(
+        TestHelper helper,
+        string category,
+        DateOnly month,
+        decimal limit,
+        DateOnly? rolloverStartMonth = null
+    )
+    {
+        var budget = new Budget
+        {
+            ID = Guid.NewGuid(),
+            Category = category,
+            Limit = limit,
+            RolloverStartMonth = rolloverStartMonth,
+            Month = month,
+            UserID = helper.demoUser.Id,
+        };
+
+        helper.UserDataContext.Budgets.Add(budget);
+        return budget;
+    }
+
+    [Fact]
+    public async Task CreateBudgetsAsync_WhenEverythingElse_ShouldCreateWithoutParentBudget()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var month = new DateOnly(2026, 1, 1);
+
+        // Act
+        await budgetService.CreateBudgetsAsync(
+            helper.demoUser.Id,
+            [
+                new BudgetCreateRequest
+                {
+                    Category = BudgetConstants.EverythingElseCategory,
+                    Limit = 300,
+                    Month = month,
+                },
+            ],
+            autoManageParents: true
+        );
+
+        // Assert
+        helper.UserDataContext.Budgets.Should().ContainSingle();
+        var budget = helper.UserDataContext.Budgets.Single();
+        budget.Category.Should().Be(BudgetConstants.EverythingElseCategory);
+        budget.Limit.Should().Be(300);
+    }
+
+    private static IBudgetResponse GetEverythingElse(IEnumerable<IBudgetResponse> budgets) =>
+        budgets.Single(b => b.Category == BudgetConstants.EverythingElseCategory);
+
+    [Fact]
+    public async Task ReadBudgetsAsync_ShouldSetEverythingElseLimitToBudgetedIncomeMinusExpenses()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var month = new DateOnly(2026, 1, 1);
+
+        AddBudget(helper, "Income", month, 3000);
+        AddBudget(helper, "Shopping", month, 500);
+        // A parent's budget already covers its subcategories, so Groceries isn't counted again.
+        AddBudget(helper, "Food & Dining", month, 600);
+        AddBudget(helper, "Groceries", month, 400);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, month);
+
+        // Assert
+        // 3000 - (500 + 600). It hasn't been saved, so it's a placeholder.
+        var everythingElse = GetEverythingElse(readBudgets);
+        everythingElse.Limit.Should().Be(1900);
+        everythingElse.IsPlaceholder.Should().BeTrue();
+        readBudgets.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenOnlySubcategoriesBudgeted_ShouldSumThemForEverythingElseLimit()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var month = new DateOnly(2026, 1, 1);
+
+        AddBudget(helper, "Paycheck", month, 2000);
+        AddBudget(helper, "Groceries", month, 400);
+        AddBudget(helper, "Restaurants", month, 100);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, month);
+
+        // Assert
+        GetEverythingElse(readBudgets).Limit.Should().Be(1500);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenExpensesExceedIncome_ShouldSetEverythingElseLimitToZero()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var month = new DateOnly(2026, 1, 1);
+
+        AddBudget(helper, "Income", month, 500);
+        AddBudget(helper, "Shopping", month, 800);
+        AddBudget(helper, BudgetConstants.EverythingElseCategory, month, 999);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, month);
+
+        // Assert
+        var everythingElse = GetEverythingElse(readBudgets);
+        everythingElse.Limit.Should().Be(0);
+        everythingElse.IsPlaceholder.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenMonthHasNoBudgets_ShouldNotAddEverythingElse()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(
+            helper.demoUser.Id,
+            new DateOnly(2026, 1, 1)
+        );
+
+        // Assert
+        readBudgets.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenEverythingElseRollsOver_ShouldCountOnlyUnbudgetedExpenses()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var accountId = AddAccount(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+
+        AddBudget(helper, "Income", january, 1000);
+        AddBudget(helper, "Shopping", january, 500);
+        AddBudget(helper, "Income", february, 1000);
+        AddBudget(helper, BudgetConstants.EverythingElseCategory, february, 0, rolloverStartMonth: january);
+
+        // Budgeted, so it belongs to the Shopping budget.
+        AddSpend(helper, accountId, january.AddDays(1), 400, category: "Shopping");
+        // Unbudgeted expenses and uncategorized spending count.
+        AddSpend(helper, accountId, january.AddDays(2), 100, category: "Entertainment");
+        AddSpend(
+            helper,
+            accountId,
+            january.AddDays(3),
+            30,
+            category: "Food & Dining",
+            subcategory: "Groceries"
+        );
+        AddSpend(helper, accountId, january.AddDays(4), 50, category: "");
+        // Income never counts against Everything Else.
+        AddSpend(helper, accountId, january.AddDays(5), -1000, category: "Income");
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+
+        // Assert
+        // January's limit is 1000 - 500, less 100 + 30 + 50 spent.
+        var everythingElse = GetEverythingElse(readBudgets);
+        everythingElse.Rollover.Should().Be(320);
+        everythingElse.Limit.Should().Be(1000);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenSubcategoryBudgeted_ShouldExcludeParentFromEverythingElse()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var accountId = AddAccount(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+
+        AddBudget(helper, "Income", january, 1000);
+        AddBudget(helper, "Groceries", january, 200);
+        AddBudget(helper, BudgetConstants.EverythingElseCategory, february, 0, rolloverStartMonth: january);
+
+        // Food & Dining has a budgeted subcategory, so all its spending stays with that card.
+        AddSpend(
+            helper,
+            accountId,
+            january.AddDays(1),
+            70,
+            category: "Food & Dining",
+            subcategory: "Restaurants"
+        );
+        AddSpend(helper, accountId, january.AddDays(2), 40, category: "Entertainment");
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, february);
+
+        // Assert
+        // (1000 - 200) - 40
+        GetEverythingElse(readBudgets).Rollover.Should().Be(760);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenEarlierMonthsHaveNoSavedEverythingElse_ShouldStillRollThemOver()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+        var accountId = AddAccount(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+        var march = new DateOnly(2026, 3, 1);
+
+        AddBudget(helper, "Income", january, 300);
+        AddBudget(helper, "Income", february, 400);
+        AddBudget(helper, "Entertainment", february, 100);
+        AddBudget(helper, BudgetConstants.EverythingElseCategory, march, 0, rolloverStartMonth: january);
+
+        AddSpend(helper, accountId, january.AddDays(1), 100, category: "Entertainment");
+        AddSpend(helper, accountId, february.AddDays(1), 100, category: "Entertainment");
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, march);
+
+        // Assert
+        // January: 300 - 100. February: Entertainment had its own budget, so (400 - 100) - 0.
+        GetEverythingElse(readBudgets).Rollover.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task ReadBudgetsAsync_WhenPlaceholder_ShouldInheritRolloverFromEarlierEverythingElse()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+        var march = new DateOnly(2026, 3, 1);
+
+        AddBudget(helper, "Income", january, 500);
+        AddBudget(helper, "Income", february, 500);
+        AddBudget(helper, BudgetConstants.EverythingElseCategory, february, 0, rolloverStartMonth: january);
+        AddBudget(helper, "Income", march, 500);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var readBudgets = await budgetService.ReadBudgetsAsync(helper.demoUser.Id, march);
+
+        // Assert
+        var everythingElse = GetEverythingElse(readBudgets);
+        everythingElse.IsPlaceholder.Should().BeTrue();
+        everythingElse.RolloverStartMonth.Should().Be(january);
+        everythingElse.Rollover.Should().Be(1000);
+    }
+
+    [Fact]
+    public async Task UpdateBudgetAsync_WhenEverythingElse_ShouldUpdateLimitAndRolloverWithoutParent()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var budgetService = CreateBudgetService(helper);
+
+        var january = new DateOnly(2026, 1, 1);
+        var february = new DateOnly(2026, 2, 1);
+        var budget = AddBudget(helper, BudgetConstants.EverythingElseCategory, february, 300);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await budgetService.UpdateBudgetAsync(
+            helper.demoUser.Id,
+            new BudgetUpdateRequest
+            {
+                ID = budget.ID,
+                Limit = 450,
+                RolloverStartMonth = january,
+            }
+        );
+
+        // Assert
+        helper.UserDataContext.Budgets.Should().ContainSingle();
+        var updated = helper.UserDataContext.Budgets.Single();
+        updated.Limit.Should().Be(450);
+        updated.RolloverStartMonth.Should().Be(january);
     }
     #endregion
 

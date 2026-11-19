@@ -3,21 +3,28 @@ import { BodyText, Card, HeadingText } from "@teelur/budget-board-ui";
 import React from "react";
 import BudgetSummaryItem from "./BudgetSummaryItem/BudgetSummaryItem";
 import { IBudget } from "~/models/budget";
-import { ICategory } from "~/models/category";
-import { areStringsEqual } from "~/helpers/utils";
-import { getRangeRolloverBudgetIds, StatusColorType } from "~/helpers/budgets";
+import { ICategory, ICategoryNode } from "~/models/category";
+import { areStringsEqual, roundAwayFromZero } from "~/helpers/utils";
+import {
+  getRangeRolloverBudgetIds,
+  getUnbudgetedSubcategoriesTotal,
+  StatusColorType,
+} from "~/helpers/budgets";
 import { useTranslation } from "react-i18next";
 import { PiggyBankIcon } from "lucide-react";
 
 interface BudgetSummaryCardProps {
-  incomeCategories: ICategory[];
+  incomeCategories: ICategoryNode[];
   expenseCategories: ICategory[];
   budgets: IBudget[];
   categoryToTransactionsTotalMap: Map<string, number>;
   categoryToRecurringForecastTotalMap: Map<string, number>;
   unbudgetedIncomeCategoryTree: ICategory[];
   unbudgetedExpenseCategoryTree: ICategory[];
-  projectedUnbudgetedTransactionsTotal: number;
+  /** The Everything Else budget for each selected month; empty when no limit is set. */
+  everythingElseBudgets: IBudget[];
+  projectedUnbudgetedIncomeTotal: number;
+  projectedUnbudgetedExpenseTotal: number;
   isPending: boolean;
   isForecastError: boolean;
 }
@@ -35,57 +42,92 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
       props.incomeCategories.some((c) => areStringsEqual(b.category, c.value)),
     )
     .reduce((acc, b) => acc + getAvailableLimit(b), 0);
-  const incomeTransactionsTotal = props.incomeCategories.reduce(
-    (acc, category) => {
+  // Income counts only from budgeted sources. Unbudgeted subcategories of a
+  // budgeted income category (e.g. Interest Income next to a budgeted Paycheck)
+  // move to the Unbudgeted line instead, so net cash flow is unchanged.
+  const isBudgeted = (category: string): boolean =>
+    props.budgets.some((b) => areStringsEqual(b.category, category));
+  const getExcludedIncomeTotal = (totals: Map<string, number>): number =>
+    props.incomeCategories.reduce(
+      (acc, category) =>
+        acc + getUnbudgetedSubcategoriesTotal(category, isBudgeted, totals),
+      0,
+    );
+  const excludedIncomeTotal = getExcludedIncomeTotal(
+    props.categoryToTransactionsTotalMap,
+  );
+  const excludedIncomeForecastTotal = getExcludedIncomeTotal(
+    props.categoryToRecurringForecastTotalMap,
+  );
+
+  const incomeTransactionsTotal =
+    props.incomeCategories.reduce((acc, category) => {
       const transactionsTotal = props.categoryToTransactionsTotalMap.get(
         category.value.toLocaleLowerCase(),
       );
       return acc + (transactionsTotal ?? 0);
-    },
+    }, 0) - excludedIncomeTotal;
+
+  const getTransactionsTotal = (categories: ICategory[]): number =>
+    categories.reduce(
+      (acc, category) =>
+        acc +
+        (props.categoryToTransactionsTotalMap.get(
+          category.value.toLocaleLowerCase(),
+        ) ?? 0),
+      0,
+    );
+
+  const unbudgetedIncomeTransactionsTotal = getTransactionsTotal(
+    props.unbudgetedIncomeCategoryTree,
+  );
+  const unbudgetedExpenseTransactionsTotal =
+    getTransactionsTotal(props.unbudgetedExpenseCategoryTree) +
+    (props.categoryToTransactionsTotalMap.get("") ?? 0);
+
+  // Expenses without a budget all fall into Everything Else, so they count as
+  // Expenses. Only income can be unbudgeted.
+  const everythingElseRolloverIds = getRangeRolloverBudgetIds(
+    props.everythingElseBudgets,
+  );
+  const everythingElseLimitTotal = props.everythingElseBudgets.reduce(
+    (acc, b) =>
+      acc + b.limit + (everythingElseRolloverIds.has(b.id) ? b.rollover : 0),
     0,
   );
 
-  const expenseBudgetsTotal = props.budgets
-    .filter((b) =>
-      props.expenseCategories.some((c) => areStringsEqual(b.category, c.value)),
-    )
-    .reduce((acc, b) => acc + getAvailableLimit(b), 0);
-  const expenseTransactionsTotal = props.expenseCategories.reduce(
-    (acc, category) => {
-      const transactionsTotal = props.categoryToTransactionsTotalMap.get(
-        category.value.toLocaleLowerCase(),
-      );
-      return acc + (transactionsTotal ?? 0);
-    },
-    0,
-  );
+  const expenseBudgetsTotal =
+    props.budgets
+      .filter((b) =>
+        props.expenseCategories.some((c) =>
+          areStringsEqual(b.category, c.value),
+        ),
+      )
+      .reduce((acc, b) => acc + getAvailableLimit(b), 0) +
+    everythingElseLimitTotal;
+  const expenseTransactionsTotal =
+    getTransactionsTotal(props.expenseCategories) +
+    unbudgetedExpenseTransactionsTotal;
 
   const unbudgetedTransactionsTotal =
-    [
-      ...props.unbudgetedIncomeCategoryTree,
-      ...props.unbudgetedExpenseCategoryTree,
-    ]
-      .map((category) => {
-        const transactionsTotal = props.categoryToTransactionsTotalMap.get(
-          category.value.toLocaleLowerCase(),
-        );
-        return transactionsTotal ?? 0;
-      })
-      .reduce((acc, total) => acc + total, 0) +
-    (props.categoryToTransactionsTotalMap.get("") ?? 0);
+    unbudgetedIncomeTransactionsTotal + excludedIncomeTotal;
 
   const getForecastTotal = (category: ICategory): number =>
     props.categoryToRecurringForecastTotalMap.get(
       category.value.toLocaleLowerCase(),
     ) ?? 0;
-  const incomeForecastTotal = props.incomeCategories.reduce(
-    (acc, category) => acc + getForecastTotal(category),
-    0,
-  );
-  const expenseForecastTotal = props.expenseCategories.reduce(
-    (acc, category) => acc + getForecastTotal(category),
-    0,
-  );
+  const incomeForecastTotal =
+    props.incomeCategories.reduce(
+      (acc, category) => acc + getForecastTotal(category),
+      0,
+    ) - excludedIncomeForecastTotal;
+  const unbudgetedForecastTotal =
+    props.projectedUnbudgetedIncomeTotal + excludedIncomeForecastTotal;
+  const expenseForecastTotal =
+    props.expenseCategories.reduce(
+      (acc, category) => acc + getForecastTotal(category),
+      0,
+    ) + props.projectedUnbudgetedExpenseTotal;
   const projectedIncomeTransactionsTotal = props.isForecastError
     ? undefined
     : incomeTransactionsTotal + incomeForecastTotal;
@@ -94,7 +136,10 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
     : expenseTransactionsTotal + expenseForecastTotal;
   const projectedUnbudgetedTotal = props.isForecastError
     ? undefined
-    : unbudgetedTransactionsTotal + props.projectedUnbudgetedTransactionsTotal;
+    : unbudgetedTransactionsTotal + unbudgetedForecastTotal;
+  const showUnbudgeted =
+    roundAwayFromZero(unbudgetedTransactionsTotal) !== 0 ||
+    roundAwayFromZero(unbudgetedForecastTotal) !== 0;
   const projectedNetExpensesTotal =
     projectedIncomeTransactionsTotal === undefined ||
     projectedExpenseTransactionsTotal === undefined
@@ -157,24 +202,26 @@ const BudgetSummaryCard = (props: BudgetSummaryCardProps): React.ReactNode => {
           </Stack>
         )}
       </Card.Section>
-      <Card.Section p="0.25rem">
-        {props.isPending ? (
-          <Flex h="100%" w="100%">
-            <Skeleton h={43} radius="md" />
-          </Flex>
-        ) : (
-          <Stack gap="0.25rem">
-            <BudgetSummaryItem
-              label={t("unbudgeted")}
-              amount={unbudgetedTransactionsTotal}
-              projectedAmount={projectedUnbudgetedTotal}
-              budgetValueType={StatusColorType.Total}
-              hideProgress
-              showDivider
-            />
-          </Stack>
-        )}
-      </Card.Section>
+      {showUnbudgeted && (
+        <Card.Section p="0.25rem">
+          {props.isPending ? (
+            <Flex h="100%" w="100%">
+              <Skeleton h={43} radius="md" />
+            </Flex>
+          ) : (
+            <Stack gap="0.25rem">
+              <BudgetSummaryItem
+                label={t("unbudgeted")}
+                amount={unbudgetedTransactionsTotal}
+                projectedAmount={projectedUnbudgetedTotal}
+                budgetValueType={StatusColorType.Total}
+                hideProgress
+                showDivider
+              />
+            </Stack>
+          )}
+        </Card.Section>
+      )}
       <Card.Section p="0.25rem">
         {props.isPending ? (
           <Flex h="100%" w="100%">

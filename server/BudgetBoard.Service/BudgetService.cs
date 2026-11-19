@@ -41,6 +41,7 @@ public class BudgetService(
 
             if (
                 autoManageParents
+                && !BudgetConstants.IsEverythingElse(request.Category)
                 && !TransactionCategoriesHelpers.GetIsParentCategory(
                     request.Category,
                     allCategories
@@ -122,12 +123,49 @@ public class BudgetService(
             .ToList();
 
         var allCategories = TransactionCategoriesHelpers.GetAllTransactionCategories(userData);
+        var everythingElseLimits = BuildEverythingElseLimits(userData, allCategories);
+
+        // Everything Else exists in every month that has budgets. Until it's saved (e.g. by turning
+        // on rollover) it is a placeholder that keeps the rollover setting of the last saved one.
+        Guid? placeholderId = null;
+        if (budgets.Count > 0 && !budgets.Any(b => BudgetConstants.IsEverythingElse(b.Category)))
+        {
+            placeholderId = GetEverythingElsePlaceholderId(month);
+            budgets.Add(
+                new Budget
+                {
+                    ID = placeholderId.Value,
+                    Month = StartOfMonth(month),
+                    Category = BudgetConstants.EverythingElseCategory,
+                    Limit = 0,
+                    RolloverStartMonth = GetInheritedRolloverStartMonth(
+                        userData,
+                        BudgetConstants.EverythingElseCategory,
+                        month
+                    ),
+                    UserID = userData.Id,
+                }
+            );
+        }
+
+        BudgetResponse ToResponse(Budget budget, decimal rollover = 0)
+        {
+            var response = new BudgetResponse(budget, rollover);
+            if (BudgetConstants.IsEverythingElse(budget.Category))
+            {
+                response.Limit = everythingElseLimits.GetValueOrDefault(
+                    (budget.Month.Year, budget.Month.Month)
+                );
+                response.IsPlaceholder = budget.ID == placeholderId;
+            }
+            return response;
+        }
 
         var rolloverBudgets = budgets.Where(b => b.RolloverStartMonth.HasValue).ToList();
 
         if (rolloverBudgets.Count == 0)
         {
-            return budgets.Select(b => new BudgetResponse(b)).ToList();
+            return budgets.Select(b => ToResponse(b)).ToList();
         }
 
         var budgetsByCategoryMonth = userData
@@ -144,7 +182,15 @@ public class BudgetService(
         var spendTo = StartOfMonth(month).AddMonths(-1);
         var categorySpendMap =
             spendFrom <= spendTo
-                ? await BuildCategorySpendMapAsync(userData.Id, spendFrom, spendTo)
+                ? await BuildCategorySpendMapAsync(
+                    userData,
+                    spendFrom,
+                    spendTo,
+                    allCategories,
+                    includeEverythingElse: rolloverBudgets.Any(b =>
+                        BudgetConstants.IsEverythingElse(b.Category)
+                    )
+                )
                 : [];
 
         var rollovers = rolloverBudgets.ToDictionary(
@@ -155,6 +201,7 @@ public class BudgetService(
                     earliestBudgetMonth,
                     budgetsByCategoryMonth,
                     categorySpendMap,
+                    everythingElseLimits,
                     allCategories
                 )
         );
@@ -169,7 +216,7 @@ public class BudgetService(
                     || !TransactionCategoriesHelpers.GetIsParentCategory(b.Category, allCategories)
                 )
                 {
-                    return new BudgetResponse(b, rollovers.GetValueOrDefault(b.ID));
+                    return ToResponse(b, rollovers.GetValueOrDefault(b.ID));
                 }
 
                 var childrenRollover = rolloverBudgets
@@ -180,7 +227,7 @@ public class BudgetService(
                     )
                     .Sum(child => rollovers[child.ID]);
 
-                return new BudgetResponse(b, childrenRollover);
+                return ToResponse(b, childrenRollover);
             })
             .ToList();
     }
@@ -198,6 +245,7 @@ public class BudgetService(
             budget.Category,
             allCategories
         );
+        var isEverythingElse = BudgetConstants.IsEverythingElse(budget.Category);
 
         var rolloverStartMonth = NormalizeToMonth(request.RolloverStartMonth);
         if (rolloverStartMonth != budget.RolloverStartMonth)
@@ -224,6 +272,13 @@ public class BudgetService(
             {
                 categoryBudget.RolloverStartMonth = rolloverStartMonth;
             }
+        }
+
+        // Everything Else stands alone: it has no parent or children whose limits need to agree.
+        if (isEverythingElse)
+        {
+            await userDataContext.SaveChangesAsync();
+            return;
         }
 
         // If the budget being updated is a parent category, ensure that the sum of its children does not exceed the new limit.
@@ -357,7 +412,8 @@ public class BudgetService(
     {
         newBudget = null;
         if (
-            allCategories.All(c =>
+            !BudgetConstants.IsEverythingElse(request.Category)
+            && allCategories.All(c =>
                 !c.Value.Equals(request.Category, StringComparison.InvariantCultureIgnoreCase)
             )
         )
@@ -469,6 +525,13 @@ public class BudgetService(
         IEnumerable<ITransactionCategoryResponse> allCategories
     )
     {
+        // Everything Else covers only categories without budgets, so it never overlaps another
+        // budget's spending.
+        if (BudgetConstants.IsEverythingElse(category))
+        {
+            return false;
+        }
+
         var fromMonth = StartOfMonth(month);
         var isParent = TransactionCategoriesHelpers.GetIsParentCategory(category, allCategories);
         var parentCategory = TransactionCategoriesHelpers.GetParentCategory(
@@ -512,15 +575,20 @@ public class BudgetService(
     /// Totals transaction amounts per category and month, mirroring how the budgets page
     /// attributes spending: a transaction counts toward both its category and its subcategory.
     /// Hidden accounts, deleted transactions and the hide-from-budgets category are excluded.
+    /// When <paramref name="includeEverythingElse"/> is set, the Everything Else budget's spending
+    /// is added under its reserved category too.
     /// </summary>
     private async Task<Dictionary<(string, int, int), decimal>> BuildCategorySpendMapAsync(
-        Guid userId,
+        ApplicationUser userData,
         DateOnly fromMonth,
-        DateOnly toMonth
+        DateOnly toMonth,
+        IEnumerable<ITransactionCategoryResponse> allCategories,
+        bool includeEverythingElse = false
     )
     {
         var start = new DateOnly(fromMonth.Year, fromMonth.Month, 1);
         var end = new DateOnly(toMonth.Year, toMonth.Month, 1).AddMonths(1).AddDays(-1);
+        var userId = userData.Id;
 
         var transactions = await userDataContext
             .Transactions.Where(t =>
@@ -542,6 +610,10 @@ public class BudgetService(
 
         var spendMap = new Dictionary<(string, int, int), decimal>();
 
+        var budgetedParentsByMonth = includeEverythingElse
+            ? BuildBudgetedParentsByMonth(userData, allCategories)
+            : [];
+
         foreach (var transaction in transactions)
         {
             var category = transaction.Category ?? string.Empty;
@@ -555,9 +627,89 @@ public class BudgetService(
             {
                 AddSpend(spendMap, subcategory, transaction.Date, transaction.Amount);
             }
+
+            if (
+                includeEverythingElse
+                && IsEverythingElseSpend(
+                    category,
+                    budgetedParentsByMonth.GetValueOrDefault(
+                        (transaction.Date.Year, transaction.Date.Month)
+                    ),
+                    allCategories
+                )
+            )
+            {
+                AddSpend(
+                    spendMap,
+                    BudgetConstants.EverythingElseCategory,
+                    transaction.Date,
+                    transaction.Amount
+                );
+            }
         }
 
         return spendMap;
+    }
+
+    /// <summary>
+    /// For each month, the top-level categories that have a budget, either their own or one of
+    /// their subcategories'. Their spending belongs to those budgets, not to Everything Else.
+    /// </summary>
+    private static Dictionary<(int, int), HashSet<string>> BuildBudgetedParentsByMonth(
+        ApplicationUser userData,
+        IEnumerable<ITransactionCategoryResponse> allCategories
+    ) =>
+        userData
+            .Budgets.Where(b => !BudgetConstants.IsEverythingElse(b.Category))
+            .GroupBy(b => (b.Month.Year, b.Month.Month))
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                    g.Select(b =>
+                            TransactionCategoriesHelpers.GetParentCategory(
+                                b.Category,
+                                allCategories
+                            )
+                        )
+                        .Where(parent => !string.IsNullOrEmpty(parent))
+                        .ToHashSet(StringComparer.InvariantCultureIgnoreCase)
+            );
+
+    /// <summary>
+    /// Everything Else collects the spending the budgets page lists as unbudgeted expenses:
+    /// uncategorized transactions, and expense categories with no budget for the month.
+    /// Income is left out, since Everything Else is an expense budget.
+    /// </summary>
+    private static bool IsEverythingElseSpend(
+        string category,
+        HashSet<string>? budgetedParents,
+        IEnumerable<ITransactionCategoryResponse> allCategories
+    )
+    {
+        if (string.IsNullOrEmpty(category))
+        {
+            return true;
+        }
+
+        var foundCategory = allCategories.FirstOrDefault(c =>
+            c.Value.Equals(category, StringComparison.InvariantCultureIgnoreCase)
+        );
+        if (
+            foundCategory == null
+            || !foundCategory.CategoryType.Equals(
+                TransactionCategoryTypes.Expense,
+                StringComparison.InvariantCultureIgnoreCase
+            )
+        )
+        {
+            return false;
+        }
+
+        var parent = string.IsNullOrEmpty(foundCategory.Parent)
+            ? foundCategory.Value
+            : foundCategory.Parent;
+
+        return budgetedParents == null || !budgetedParents.Contains(parent);
     }
 
     private static void AddSpend(
@@ -582,6 +734,7 @@ public class BudgetService(
         DateOnly earliestBudgetMonth,
         IReadOnlyDictionary<(string, int, int), Budget> budgetsByCategoryMonth,
         IReadOnlyDictionary<(string, int, int), decimal> categorySpendMap,
+        IReadOnlyDictionary<(int, int), decimal> everythingElseLimits,
         IEnumerable<ITransactionCategoryResponse> allCategories
     )
     {
@@ -592,6 +745,7 @@ public class BudgetService(
 
         // Expense amounts are stored negative, so they need flipping to count against a limit.
         var sign = IsIncomeCategory(budget.Category, allCategories) ? 1 : -1;
+        var isEverythingElse = BudgetConstants.IsEverythingElse(budget.Category);
 
         // Nothing exists before the first budget, so starting earlier just adds empty months.
         var effectiveStart = startMonth > earliestBudgetMonth ? startMonth : earliestBudgetMonth;
@@ -602,7 +756,19 @@ public class BudgetService(
         while (month < budget.Month)
         {
             var key = GetCategoryMonthKey(budget.Category, month);
-            if (budgetsByCategoryMonth.TryGetValue(key, out var priorBudget))
+            if (isEverythingElse)
+            {
+                // Everything Else exists in every month with budgets, saved or not, and its limit
+                // is always derived from that month's other budgets.
+                if (
+                    everythingElseLimits.TryGetValue((month.Year, month.Month), out var limit)
+                    || budgetsByCategoryMonth.ContainsKey(key)
+                )
+                {
+                    rollover += limit - (categorySpendMap.GetValueOrDefault(key) * sign);
+                }
+            }
+            else if (budgetsByCategoryMonth.TryGetValue(key, out var priorBudget))
             {
                 rollover += priorBudget.Limit - (categorySpendMap.GetValueOrDefault(key) * sign);
             }
@@ -611,6 +777,62 @@ public class BudgetService(
         }
 
         return rollover;
+    }
+
+    /// <summary>
+    /// Everything Else's limit for each month with budgets: budgeted income minus budgeted
+    /// expenses, never below zero. Each top-level category is counted once, using its own budget
+    /// when it has one (it already covers its subcategories) and otherwise its subcategories'.
+    /// </summary>
+    private static Dictionary<(int, int), decimal> BuildEverythingElseLimits(
+        ApplicationUser userData,
+        IEnumerable<ITransactionCategoryResponse> allCategories
+    ) =>
+        userData
+            .Budgets.Where(b => !BudgetConstants.IsEverythingElse(b.Category))
+            .GroupBy(b => (b.Month.Year, b.Month.Month))
+            .ToDictionary(
+                monthGroup => monthGroup.Key,
+                monthGroup =>
+                {
+                    var net = monthGroup
+                        .GroupBy(
+                            b =>
+                                TransactionCategoriesHelpers.GetParentCategory(
+                                    b.Category,
+                                    allCategories
+                                ),
+                            StringComparer.InvariantCultureIgnoreCase
+                        )
+                        .Where(parentGroup => !string.IsNullOrEmpty(parentGroup.Key))
+                        .Sum(parentGroup =>
+                        {
+                            var parentBudget = parentGroup.FirstOrDefault(b =>
+                                b.Category.Equals(
+                                    parentGroup.Key,
+                                    StringComparison.InvariantCultureIgnoreCase
+                                )
+                            );
+                            var limit = parentBudget?.Limit ?? parentGroup.Sum(b => b.Limit);
+                            return IsIncomeCategory(parentGroup.Key, allCategories)
+                                ? limit
+                                : -limit;
+                        });
+
+                    return Math.Max(0, net);
+                }
+            );
+
+    /// <summary>
+    /// A stable ID for a month's unsaved Everything Else, so each month's placeholder is distinct.
+    /// </summary>
+    private static Guid GetEverythingElsePlaceholderId(DateOnly month)
+    {
+        var bytes = new byte[16];
+        BitConverter.GetBytes(month.Year).CopyTo(bytes, 0);
+        BitConverter.GetBytes(month.Month).CopyTo(bytes, 4);
+        bytes[15] = 0xEE;
+        return new Guid(bytes);
     }
 
     private static bool IsIncomeCategory(

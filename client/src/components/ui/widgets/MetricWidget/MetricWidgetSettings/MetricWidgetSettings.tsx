@@ -15,6 +15,7 @@ import FormulaTextInput from "./FormulaTextInput/FormulaTextInput";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useAccountsQuery } from "~/hooks/queries/useAccountsQuery";
 import { useBudgetsQuery } from "~/hooks/queries/useBudgetsQuery";
+import { EVERYTHING_ELSE_CATEGORY } from "~/models/budget";
 import { useGoalsQuery } from "~/hooks/queries/useGoalsQuery";
 import { useUpdateWidgetSettingsMutation } from "~/hooks/mutations/widgetSettings/useUpdateWidgetSettingsMutation";
 import { IWidgetSettingsResponse } from "~/models/widgetSettings";
@@ -78,7 +79,8 @@ const MetricWidgetSettings = ({
       Array.from(
         new Set((budgetsQuery.data ?? []).map((budget) => budget.category)),
       )
-        .filter(Boolean)
+        // Everything Else has no transactions of its own to measure against.
+        .filter((category) => category && category !== EVERYTHING_ELSE_CATEGORY)
         .sort((a, b) => a.localeCompare(b)),
     [budgetsQuery.data],
   );

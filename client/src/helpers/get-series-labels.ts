@@ -3,7 +3,7 @@ import { ChartSeries } from "@mantine/charts";
 type ChartSeriesLabels = Record<string, string | undefined>;
 
 export function getSeriesLabels(
-  series: ChartSeries[] | undefined
+  series: ChartSeries[] | undefined,
 ): ChartSeriesLabels {
   if (!series) {
     return {};
