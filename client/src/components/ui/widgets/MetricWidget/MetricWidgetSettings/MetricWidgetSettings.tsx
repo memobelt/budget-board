@@ -15,7 +15,10 @@ import FormulaTextInput from "./FormulaTextInput/FormulaTextInput";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useAccountsQuery } from "~/hooks/queries/useAccountsQuery";
 import { useBudgetsQuery } from "~/hooks/queries/useBudgetsQuery";
-import { EVERYTHING_ELSE_CATEGORY } from "~/models/budget";
+import {
+  EVERYTHING_ELSE_CATEGORY,
+  EVERYTHING_ELSE_DISPLAY_NAME,
+} from "~/models/budget";
 import { useGoalsQuery } from "~/hooks/queries/useGoalsQuery";
 import { useUpdateWidgetSettingsMutation } from "~/hooks/mutations/widgetSettings/useUpdateWidgetSettingsMutation";
 import { IWidgetSettingsResponse } from "~/models/widgetSettings";
@@ -77,10 +80,16 @@ const MetricWidgetSettings = ({
   const budgetCategories = React.useMemo(
     () =>
       Array.from(
-        new Set((budgetsQuery.data ?? []).map((budget) => budget.category)),
+        new Set(
+          (budgetsQuery.data ?? []).map((budget) =>
+            // Everything Else is written by name in formulas.
+            budget.category === EVERYTHING_ELSE_CATEGORY
+              ? EVERYTHING_ELSE_DISPLAY_NAME
+              : budget.category,
+          ),
+        ),
       )
-        // Everything Else has no transactions of its own to measure against.
-        .filter((category) => category && category !== EVERYTHING_ELSE_CATEGORY)
+        .filter(Boolean)
         .sort((a, b) => a.localeCompare(b)),
     [budgetsQuery.data],
   );

@@ -5,6 +5,7 @@ import {
 } from "~/models/budget";
 import {
   CategoryNode,
+  CategoryTypes,
   ICategory,
   ICategoryNode,
   ITransactionCategory,
@@ -77,6 +78,64 @@ export const withoutTransfers = <
   items: T[],
   categories: ICategory[],
 ): T[] => items.filter((item) => !isTransfer(item, categories));
+
+/**
+ * Whether a transaction's spending falls into Everything Else, given the
+ * budgets for its month. Mirrors the budgets page: uncategorized spending,
+ * expense categories with no budget, and the unbudgeted subcategories of
+ * categories that have budgeted ones. Income and transfers never count.
+ */
+export const isEverythingElseTransaction = (
+  transaction: { category: string | null; subcategory: string | null },
+  monthBudgets: IBudget[],
+  categories: ITransactionCategory[],
+): boolean => {
+  if (isTransfer(transaction, categories)) {
+    return false;
+  }
+
+  const category = transaction.category ?? "";
+  if (category === "") {
+    return true;
+  }
+
+  const foundCategory = categories.find((c) =>
+    areStringsEqual(c.value, category),
+  );
+  if (
+    !foundCategory ||
+    !areStringsEqual(foundCategory.categoryType, CategoryTypes.Expense)
+  ) {
+    return false;
+  }
+
+  const parent = getParentCategory(category, categories);
+  const categoryBudgets = monthBudgets.filter(
+    (budget) => !isEverythingElseBudget(budget),
+  );
+  const isBudgeted = (value: string): boolean =>
+    categoryBudgets.some((budget) => areStringsEqual(budget.category, value));
+
+  const parentIsBudgeted = categoryBudgets.some((budget) =>
+    areStringsEqual(getParentCategory(budget.category, categories), parent),
+  );
+  if (!parentIsBudgeted) {
+    return true;
+  }
+
+  const parentHasBudgetedSubcategory = categoryBudgets.some(
+    (budget) =>
+      !getIsParentCategory(budget.category, categories) &&
+      areStringsEqual(getParentCategory(budget.category, categories), parent),
+  );
+  const subcategory = transaction.subcategory ?? "";
+  return (
+    parentHasBudgetedSubcategory &&
+    subcategory !== "" &&
+    !areStringsEqual(subcategory, category) &&
+    !isBudgeted(subcategory)
+  );
+};
 
 /**
  * Whether the budget is the reserved "Everything Else" budget rather than a category budget.
