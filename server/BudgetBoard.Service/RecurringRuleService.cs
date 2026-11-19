@@ -18,7 +18,6 @@ public class RecurringRuleService(
     IStringLocalizer<LogStrings> logLocalizer
 ) : IRecurringRuleService
 {
-    private const int MatchDateWindowDays = 5;
     private static readonly decimal MatchAmountTolerance = 0.2M;
 
     public async Task CreateRecurringRuleAsync(
@@ -178,10 +177,30 @@ public class RecurringRuleService(
             );
             var amount = GetForecastAmount(rule);
 
-            var pairedOccurrences = GetPairedOccurrences(
+            // A charge counts as paid by a transaction in the same month on the rule's account
+            // with the same name, category and subcategory, whatever its date or amount: either
+            // linked to the rule, or not linked to any rule. Each pays its nearest due date.
+            var unlinkedTransactions = (rule.Account?.Transactions ?? [])
+                .Where(transaction =>
+                    transaction.RecurringRuleID is null
+                    && transaction.Deleted is null
+                    && AreEqual(rule.MerchantName, transaction.MerchantName)
+                    && AreEqual(rule.Category, transaction.Category)
+                    && AreEqual(rule.Subcategory, transaction.Subcategory)
+                    && IsWithinRange(transaction.Date, monthStart, monthEnd)
+                )
+                .ToList();
+            var pairedOccurrences = PairTransactionsWithOccurrences(
                 rule,
                 responseLocalizer,
-                rangeStart,
+                [
+                    .. rule.Transactions.Where(transaction =>
+                        transaction.Deleted is null
+                        && IsWithinRange(transaction.Date, monthStart, monthEnd)
+                    ),
+                    .. unlinkedTransactions,
+                ],
+                monthStart,
                 monthEnd
             );
             foreach (var date in dates)
@@ -234,9 +253,18 @@ public class RecurringRuleService(
             .Where(rule => !IsExcludedBudgetCategory(rule.Category))
             .ToList();
 
+        // A rule on the same account with the same name, category and subcategory matches. When
+        // several do, the amount picks between them.
         var matchingRules = rules
             .Where(rule => IsTransactionMatch(rule, transaction, responseLocalizer))
             .ToList();
+        if (matchingRules.Count > 1)
+        {
+            matchingRules = NarrowMatches(
+                matchingRules,
+                rule => IsAmountWithinTolerance(GetForecastAmount(rule), transaction.Amount)
+            );
+        }
         if (matchingRules.Count != 1)
         {
             if (matchingRules.Count > 1)
@@ -356,11 +384,12 @@ public class RecurringRuleService(
         IStringLocalizer<ResponseStrings> responseLocalizer
     )
     {
+        // The account is checked by the caller; the name, category and subcategory have to match.
+        // The amount may differ, e.g. a bill that varies.
         if (
             !AreEqual(rule.MerchantName, transaction.MerchantName)
             || !AreEqual(rule.Category, transaction.Category)
             || !AreEqual(rule.Subcategory, transaction.Subcategory)
-            || !IsAmountWithinTolerance(GetForecastAmount(rule), transaction.Amount)
         )
         {
             return false;
@@ -369,8 +398,11 @@ public class RecurringRuleService(
         return GetPairedOccurrences(
                 rule,
                 responseLocalizer,
-                transaction.Date.AddDays(-MatchDateWindowDays),
-                transaction.Date.AddDays(MatchDateWindowDays),
+                // Any due date in the transaction's month, however far from it.
+                new DateOnly(transaction.Date.Year, transaction.Date.Month, 1),
+                new DateOnly(transaction.Date.Year, transaction.Date.Month, 1)
+                    .AddMonths(1)
+                    .AddDays(-1),
                 transaction
             )
             .ContainsKey(transaction);
@@ -388,7 +420,7 @@ public class RecurringRuleService(
             .Transactions.Where(transaction =>
                 transaction.Deleted is null
                 && transaction != additionalTransaction
-                && IsWithinExpandedRange(transaction.Date, requestedRangeStart, requestedRangeEnd)
+                && IsWithinRange(transaction.Date, requestedRangeStart, requestedRangeEnd)
             )
             .ToList();
         if (additionalTransaction is not null)
@@ -396,6 +428,27 @@ public class RecurringRuleService(
             transactions.Add(additionalTransaction);
         }
 
+        return PairTransactionsWithOccurrences(
+            rule,
+            responseLocalizer,
+            transactions,
+            requestedRangeStart,
+            requestedRangeEnd
+        );
+    }
+
+    /// <summary>
+    /// Pairs each transaction with the rule's nearest occurrence within the date window, leaving
+    /// ties unpaired.
+    /// </summary>
+    private static IReadOnlyDictionary<Transaction, DateOnly> PairTransactionsWithOccurrences(
+        RecurringRule rule,
+        IStringLocalizer<ResponseStrings> responseLocalizer,
+        List<Transaction> transactions,
+        DateOnly? requestedRangeStart,
+        DateOnly? requestedRangeEnd
+    )
+    {
         if (transactions.Count == 0)
         {
             return new Dictionary<Transaction, DateOnly>();
@@ -403,12 +456,8 @@ public class RecurringRuleService(
 
         var earliestDate = requestedRangeStart ?? transactions.Min(transaction => transaction.Date);
         var latestDate = requestedRangeEnd ?? transactions.Max(transaction => transaction.Date);
-        var occurrenceRangeStart = DateOnly.FromDayNumber(
-            Math.Max(DateOnly.MinValue.DayNumber, earliestDate.DayNumber - MatchDateWindowDays)
-        );
-        var occurrenceRangeEnd = DateOnly.FromDayNumber(
-            Math.Min(DateOnly.MaxValue.DayNumber, latestDate.DayNumber + MatchDateWindowDays)
-        );
+        var occurrenceRangeStart = earliestDate;
+        var occurrenceRangeEnd = latestDate;
         var occurrences = RecurringRuleOccurrenceCalculator
             .GetOccurrences(rule, occurrenceRangeStart, occurrenceRangeEnd, responseLocalizer)
             .ToHashSet();
@@ -420,20 +469,13 @@ public class RecurringRuleService(
         {
             var edges = remainingTransactions
                 .SelectMany(transaction =>
-                    remainingOccurrences
-                        .Where(occurrence =>
-                            Math.Abs(transaction.Date.DayNumber - occurrence.DayNumber)
-                            <= MatchDateWindowDays
+                    remainingOccurrences.Select(occurrence =>
+                        (
+                            Transaction: transaction,
+                            Occurrence: occurrence,
+                            Distance: Math.Abs(transaction.Date.DayNumber - occurrence.DayNumber)
                         )
-                        .Select(occurrence =>
-                            (
-                                Transaction: transaction,
-                                Occurrence: occurrence,
-                                Distance: Math.Abs(
-                                    transaction.Date.DayNumber - occurrence.DayNumber
-                                )
-                            )
-                        )
+                    )
                 )
                 .ToList();
             if (edges.Count == 0)
@@ -470,19 +512,26 @@ public class RecurringRuleService(
         return pairs.ToDictionary(pair => pair.Transaction, pair => pair.Occurrence);
     }
 
-    private static bool IsWithinExpandedRange(
-        DateOnly date,
-        DateOnly? rangeStart,
-        DateOnly? rangeEnd
+    /// <summary>
+    /// Keeps the rules that pass the test, unless none do, in which case all are kept.
+    /// </summary>
+    private static List<RecurringRule> NarrowMatches(
+        List<RecurringRule> rules,
+        Func<RecurringRule, bool> test
     )
+    {
+        var narrowed = rules.Where(test).ToList();
+        return narrowed.Count > 0 ? narrowed : rules;
+    }
+
+    private static bool IsWithinRange(DateOnly date, DateOnly? rangeStart, DateOnly? rangeEnd)
     {
         if (rangeStart is null || rangeEnd is null)
         {
             return true;
         }
 
-        return date.DayNumber >= rangeStart.Value.DayNumber - MatchDateWindowDays
-            && date.DayNumber <= rangeEnd.Value.DayNumber + MatchDateWindowDays;
+        return date >= rangeStart.Value && date <= rangeEnd.Value;
     }
 
     private static decimal GetForecastAmount(RecurringRule rule)

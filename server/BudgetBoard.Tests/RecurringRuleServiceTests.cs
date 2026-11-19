@@ -873,15 +873,15 @@ public class RecurringRuleServiceTests
     }
 
     [Fact]
-    public async Task MatchTransactionAsync_ShouldRejectOccurrencesOutsideDateWindow()
+    public async Task MatchTransactionAsync_ShouldMatchADueDateAnywhereInTheSameMonth()
     {
         var helper = new TestHelper();
         var account = AddAccount(helper);
-        AddRule(helper, account);
+        var rule = AddRule(helper, account);
         var transaction = new Transaction
         {
             Amount = 100,
-            Date = new DateOnly(2026, 8, 7),
+            Date = new DateOnly(2026, 8, 28),
             MerchantName = "Merchant",
             Category = "Category",
             Subcategory = "Subcategory",
@@ -893,7 +893,7 @@ public class RecurringRuleServiceTests
 
         await service.MatchTransactionAsync(helper.demoUser.Id, transaction);
 
-        transaction.RecurringRuleID.Should().BeNull();
+        transaction.RecurringRuleID.Should().Be(rule.ID);
     }
 
     [Fact]
@@ -1467,6 +1467,130 @@ public class RecurringRuleServiceTests
         };
         await service.MatchTransactionAsync(helper.demoUser.Id, unmatchedTransaction);
         unmatchedTransaction.RecurringRuleID.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MatchTransactionAsync_ShouldMatchOnAccountNameAndCategoriesEvenWhenAmountDiffers()
+    {
+        var helper = new TestHelper();
+        var account = AddAccount(helper);
+        var rule = AddRule(helper, account, amount: 100);
+        var transaction = new Transaction
+        {
+            Amount = 250,
+            Date = new DateOnly(2026, 8, 20),
+            MerchantName = "MERCHANT",
+            Category = "Category",
+            Subcategory = "Subcategory",
+            Source = TransactionSource.Manual,
+            AccountID = account.ID,
+            Account = account,
+        };
+        var service = CreateService(helper, new DateOnly(2026, 8, 1));
+
+        await service.MatchTransactionAsync(helper.demoUser.Id, transaction);
+
+        transaction.RecurringRuleID.Should().Be(rule.ID);
+    }
+
+    [Fact]
+    public async Task MatchTransactionAsync_ShouldNotMatchWhenTheCategoryOrSubcategoryDiffers()
+    {
+        var helper = new TestHelper();
+        var account = AddAccount(helper);
+        AddRule(helper, account);
+        var service = CreateService(helper, new DateOnly(2026, 8, 1));
+
+        foreach (
+            var (category, subcategory) in new[]
+            {
+                ("Something Else", "Subcategory"),
+                ("Category", "Something Else"),
+            }
+        )
+        {
+            var transaction = new Transaction
+            {
+                Amount = 100,
+                Date = new DateOnly(2026, 8, 1),
+                MerchantName = "Merchant",
+                Category = category,
+                Subcategory = subcategory,
+                Source = TransactionSource.Manual,
+                AccountID = account.ID,
+                Account = account,
+            };
+
+            await service.MatchTransactionAsync(helper.demoUser.Id, transaction);
+
+            transaction.RecurringRuleID.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task MatchTransactionAsync_ShouldUseAmountToChooseBetweenRulesWithTheSameName()
+    {
+        var helper = new TestHelper();
+        var account = AddAccount(helper);
+        AddRule(helper, account, amount: 15);
+        var largerRule = AddRule(helper, account, amount: 100);
+        var transaction = new Transaction
+        {
+            Amount = 105,
+            Date = new DateOnly(2026, 8, 1),
+            MerchantName = "Merchant",
+            Category = "Category",
+            Subcategory = "Subcategory",
+            Source = TransactionSource.Manual,
+            AccountID = account.ID,
+            Account = account,
+        };
+        var service = CreateService(helper, new DateOnly(2026, 8, 1));
+
+        await service.MatchTransactionAsync(helper.demoUser.Id, transaction);
+
+        transaction.RecurringRuleID.Should().Be(largerRule.ID);
+    }
+
+    [Fact]
+    public async Task ReadForecastAsync_ShouldReconcileWithAnUnlinkedTransactionAnywhereInTheMonth()
+    {
+        var helper = new TestHelper();
+        var account = AddAccount(helper);
+        var rule = AddRule(helper, account, amount: 100);
+        rule.StartDate = new DateOnly(2026, 8, 25);
+        // Not linked to the rule, paid long before the due date, and a different amount.
+        AddTransaction(helper, account, new DateOnly(2026, 8, 2), 250);
+        await helper.UserDataContext.SaveChangesAsync();
+
+        var forecast = await CreateService(helper, new DateOnly(2026, 8, 10))
+            .ReadForecastAsync(helper.demoUser.Id, new DateOnly(2026, 8, 1));
+
+        forecast.Should().NotContain(item => item.RuleID == rule.ID);
+    }
+
+    [Fact]
+    public async Task ReadForecastAsync_ShouldNotReconcileWithTransactionsFromAnotherAccountNameOrCategory()
+    {
+        var helper = new TestHelper();
+        var account = AddAccount(helper);
+        var otherAccount = AddAccount(helper, "Other");
+        var rule = AddRule(helper, account, amount: 100);
+        AddTransaction(helper, otherAccount, new DateOnly(2026, 8, 2), 100);
+        var differentName = AddTransaction(helper, account, new DateOnly(2026, 8, 2), 100);
+        differentName.MerchantName = "Someone Else";
+        var differentCategory = AddTransaction(helper, account, new DateOnly(2026, 8, 2), 100);
+        differentCategory.Category = "Something Else";
+        var differentSubcategory = AddTransaction(helper, account, new DateOnly(2026, 8, 2), 100);
+        differentSubcategory.Subcategory = "Something Else";
+        // Last month's payment doesn't pay this month's charge.
+        AddTransaction(helper, account, new DateOnly(2026, 7, 31), 100);
+        await helper.UserDataContext.SaveChangesAsync();
+
+        var forecast = await CreateService(helper, new DateOnly(2026, 8, 1))
+            .ReadForecastAsync(helper.demoUser.Id, new DateOnly(2026, 8, 1));
+
+        forecast.Should().ContainSingle(item => item.RuleID == rule.ID);
     }
 
     #endregion
