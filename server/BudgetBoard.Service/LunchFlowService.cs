@@ -386,12 +386,31 @@ public class LunchFlowService(
                 var receivedCount = lunchFlowTransactionsData.Transactions.Count();
                 var createdCount = 0;
                 var existingCount = 0;
+                var matchedCount = 0;
 
                 foreach (var transaction in transactionsToSync)
                 {
                     if (userTransactions.Any(t => t.SyncID != null && t.SyncID == transaction.ID))
                     {
                         existingCount++;
+                        continue;
+                    }
+
+                    // If the user already entered this transaction by hand, link it instead of adding a duplicate.
+                    var manualMatch = ManualTransactionMatcher.FindMatch(
+                        userTransactions,
+                        transaction.Amount,
+                        DateOnly.Parse(transaction.Date)
+                    );
+                    if (manualMatch != null)
+                    {
+                        ManualTransactionMatcher.Link(
+                            manualMatch,
+                            transaction.ID,
+                            TransactionSource.LunchFlow,
+                            transaction.Merchant
+                        );
+                        matchedCount++;
                         continue;
                     }
 
@@ -423,14 +442,19 @@ public class LunchFlowService(
                     );
                 }
 
+                if (matchedCount > 0)
+                {
+                    await userDataContext.SaveChangesAsync();
+                }
+
                 logger.LogTransactionSync(
                     logLocalizer[
                         "LunchFlowTransactionSyncSummaryLog",
                         userAccount.Name,
                         receivedCount,
                         createdCount,
-                        existingCount,
-                        receivedCount - createdCount - existingCount
+                        existingCount + matchedCount,
+                        receivedCount - createdCount - existingCount - matchedCount
                     ]
                 );
             }

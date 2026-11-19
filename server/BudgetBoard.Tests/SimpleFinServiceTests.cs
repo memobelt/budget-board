@@ -1648,6 +1648,151 @@ public class SimpleFinServiceTests
     }
 
     [Fact]
+    public async Task SyncTransactionHistoryAsync_WhenManualTransactionMatches_ShouldLinkInsteadOfCreating()
+    {
+        // Arrange
+        var helper = new TestHelper();
+
+        var jsonResponse =
+            @"{
+            ""errors"": [],
+            ""accounts"": [
+                {
+                    ""org"": {
+                        ""domain"": ""example.com"",
+                        ""sfin-url"": ""https://example.com/simplefin"",
+                        ""name"": ""Example Bank"",
+                        ""url"": ""https://example.com"",
+                        ""id"": ""org-123""
+                    },
+                    ""id"": ""account-456"",
+                    ""name"": ""Checking Account"",
+                    ""currency"": ""USD"",
+                    ""balance"": ""1500.75"",
+                    ""balance-date"": 1609459200,
+                    ""transactions"": [
+                        {
+                            ""id"": ""txn-1"",
+                            ""posted"": 1609372800,
+                            ""amount"": ""-50.00"",
+                            ""description"": ""Coffee Shop"",
+                            ""transacted_at"": 1609372800,
+                            ""pending"": false
+                        }
+                    ]
+                }
+            ]
+        }";
+
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ReturnsAsync(
+                new HttpResponseMessage
+                {
+                    StatusCode = System.Net.HttpStatusCode.OK,
+                    Content = new StringContent(jsonResponse),
+                }
+            );
+
+        using var httpClient = new HttpClient(mockHttpMessageHandler.Object);
+        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        httpClientFactoryMock
+            .Setup(_ => _.CreateClient(string.Empty))
+            .Returns(httpClient)
+            .Verifiable();
+
+        var nowProviderMock = Mock.Of<INowProvider>();
+        Mock.Get(nowProviderMock).Setup(_ => _.UtcNow).Returns(DateTime.UtcNow);
+
+        var transactionServiceMock = new Mock<ITransactionService>();
+        var balanceServiceMock = new Mock<IBalanceService>();
+
+        var simpleFinService = new SimpleFinService(
+            httpClientFactoryMock.Object,
+            helper.UserDataContext,
+            Mock.Of<ILogger<ISimpleFinService>>(),
+            nowProviderMock,
+            Mock.Of<IAccountService>(),
+            transactionServiceMock.Object,
+            balanceServiceMock.Object,
+            Mock.Of<ISimpleFinOrganizationService>(),
+            Mock.Of<ISimpleFinAccountService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>()
+        );
+
+        // Set up existing organization, SimpleFIN account, and linked account
+        var org = new Database.Models.SimpleFinOrganization
+        {
+            Domain = "example.com",
+            SimpleFinUrl = "https://example.com/simplefin",
+            Name = "Example Bank",
+            UserID = helper.demoUser.Id,
+        };
+        helper.UserDataContext.SimpleFinOrganizations.Add(org);
+
+        var account = new Database.Models.Account
+        {
+            Name = "My Checking",
+            InstitutionID = Guid.NewGuid(),
+            Type = "checking",
+            UserID = helper.demoUser.Id,
+        };
+        helper.UserDataContext.Accounts.Add(account);
+
+        var simpleFinAccount = new Database.Models.SimpleFinAccount
+        {
+            SyncID = "account-456",
+            Name = "Checking Account",
+            Currency = "USD",
+            Balance = 1000.00m,
+            BalanceDate = (int)new DateTimeOffset(DateTime.UtcNow.AddDays(-2)).ToUnixTimeSeconds(),
+            OrganizationId = org.ID,
+            LinkedAccountId = account.ID,
+            UserID = helper.demoUser.Id,
+            LastSync = DateTime.UtcNow.AddDays(-1),
+        };
+        helper.UserDataContext.SimpleFinAccounts.Add(simpleFinAccount);
+
+        // The user entered the $50 coffee by hand the day before the bank posted it.
+        var manualTransaction = new Database.Models.Transaction
+        {
+            Amount = -50.00m,
+            Date = new DateOnly(2020, 12, 30),
+            MerchantName = "Coffee with Sam",
+            Category = "coffee",
+            Source = TransactionSource.Manual,
+            AccountID = account.ID,
+        };
+        helper.UserDataContext.Transactions.Add(manualTransaction);
+
+        helper.demoUser.SimpleFinAccessToken = "https://demo:demo@test.com/simplefin";
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var errors = await simpleFinService.SyncTransactionHistoryAsync(helper.demoUser.Id);
+
+        // Assert
+        errors.Should().BeEmpty();
+        transactionServiceMock.Verify(
+            s => s.CreateTransactionAsync(helper.demoUser, It.IsAny<ITransactionCreateRequest>()),
+            Times.Never
+        );
+
+        var linked = helper.UserDataContext.Transactions.Single(t => t.ID == manualTransaction.ID);
+        linked.SyncID.Should().Be("txn-1");
+        linked.Source.Should().Be(TransactionSource.SimpleFIN);
+        linked.MerchantName.Should().Be("Coffee with Sam");
+        linked.Date.Should().Be(new DateOnly(2020, 12, 30));
+    }
+
+    [Fact]
     public async Task SyncTransactionHistoryAsync_WhenCalledWithInvalidUserId_ShouldThrowInvalidUserError()
     {
         // Arrange
