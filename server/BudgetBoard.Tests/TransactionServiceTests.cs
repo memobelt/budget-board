@@ -666,6 +666,64 @@ public class TransactionServiceTests
     }
 
     [Fact]
+    public async Task UpdateTransactionsAsync_WhenAddingNewTagToSeveralTransactions_ShouldCreateItOnce()
+    {
+        var helper = new TestHelper();
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        helper.UserDataContext.Accounts.Add(account);
+        await helper.UserDataContext.SaveChangesAsync();
+        var tagService = CreateTagService(helper);
+        var transactionService = new TransactionService(
+            Mock.Of<ILogger<ITransactionService>>(),
+            helper.UserDataContext,
+            Mock.Of<INowProvider>(),
+            Mock.Of<IAutomaticTransactionCategorizerService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>(),
+            tagService,
+            Mock.Of<IRecurringRuleService>()
+        );
+
+        await CreateTransactionWithTagsAsync(
+            helper,
+            transactionService,
+            tagService,
+            account,
+            10,
+            new DateOnly(2026, 8, 1),
+            []
+        );
+        await CreateTransactionWithTagsAsync(
+            helper,
+            transactionService,
+            tagService,
+            account,
+            20,
+            new DateOnly(2026, 8, 2),
+            []
+        );
+
+        // The bulk edit bar sends one request per selected transaction, all saved together.
+        var transactionIds = helper.UserDataContext.Transactions.Select(t => t.ID).ToList();
+        await transactionService.UpdateTransactionsAsync(
+            helper.demoUser.Id,
+            transactionIds.Select(id => new TransactionUpdateRequest
+            {
+                ID = id,
+                AddTags = ["Vacation"],
+            })
+        );
+
+        var tag = helper.UserDataContext.Tags.Should().ContainSingle().Subject;
+        tag.Value.Should().Be("Vacation");
+        helper
+            .UserDataContext.TransactionTags.Where(link => link.TagID == tag.ID)
+            .Select(link => link.TransactionID)
+            .Should()
+            .BeEquivalentTo(transactionIds);
+    }
+
+    [Fact]
     public async Task UpdateTransactionsAsync_WhenTransactionDoesNotExist_ShouldThrowTransactionNotFoundError()
     {
         // Arrange

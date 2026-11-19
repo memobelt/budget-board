@@ -69,6 +69,23 @@ public class TagService(
             )
             .ToDictionaryAsync(tag => tag.NormalizedValue, StringComparer.Ordinal);
 
+        // Tags created earlier in the same save (e.g. when tagging several transactions at once)
+        // aren't in the database yet. Reuse them rather than creating the same tag twice, which
+        // would break the one-tag-per-name rule when saving.
+        foreach (
+            var pendingTag in userDataContext
+                .ChangeTracker.Entries<Tag>()
+                .Where(entry =>
+                    entry.State == EntityState.Added
+                    && entry.Entity.UserID == userGuid
+                    && additions.ContainsKey(entry.Entity.NormalizedValue)
+                )
+                .Select(entry => entry.Entity)
+        )
+        {
+            tagsByNormalizedValue.TryAdd(pendingTag.NormalizedValue, pendingTag);
+        }
+
         foreach (var (normalizedValue, displayValue) in additions)
         {
             if (currentValues.Contains(normalizedValue))
