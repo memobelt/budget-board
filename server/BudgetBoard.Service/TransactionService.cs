@@ -221,6 +221,10 @@ public class TransactionService(
             {
                 transaction.Notes = request.Notes;
             }
+            if (request.GoalID.IsSpecified)
+            {
+                transaction.GoalID = GetGoalIDForTransaction(userData, request.GoalID.Value);
+            }
 
             if (request.AddTags is not null || request.RemoveTags is not null)
             {
@@ -722,7 +726,37 @@ public class TransactionService(
                     .ThenInclude(a => a.Balances)
                     .Include(u => u.UserSettings)
                     .Include(u => u.TransactionCategories)
+                    .Include(u => u.Goals)
         );
+    }
+
+    /// <summary>
+    /// Validates that a transaction can count towards the given goal.
+    /// Only the user's own manual goals (goals not linked to accounts) can have transactions.
+    /// </summary>
+    private Guid? GetGoalIDForTransaction(ApplicationUser userData, Guid? goalID)
+    {
+        if (goalID is not Guid id)
+        {
+            return null;
+        }
+
+        var goal = userData.Goals.FirstOrDefault(g => g.ID == id);
+        if (goal == null)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalNotFoundLog"]);
+            throw new BudgetBoardServiceException(responseLocalizer["GoalNotFoundError"]);
+        }
+
+        if (!goal.IsManual)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["TransactionGoalNotManualLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["TransactionGoalNotManualError"]
+            );
+        }
+
+        return goal.ID;
     }
 
     private Transaction GetTransactionByID(ApplicationUser userData, Guid transactionID)

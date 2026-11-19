@@ -91,6 +91,36 @@ public class GoalUpdateRequest : IGoalUpdateRequest
         new OptionalField<decimal?>();
 }
 
+public interface IGoalTransactionResponse
+{
+    Guid ID { get; }
+    DateOnly Date { get; }
+    decimal Amount { get; }
+    decimal CountedAmount { get; }
+    string? MerchantName { get; }
+    string AccountName { get; }
+}
+
+public class GoalTransactionResponse : IGoalTransactionResponse
+{
+    public Guid ID { get; set; }
+    public DateOnly Date { get; set; }
+    public decimal Amount { get; set; }
+    public decimal CountedAmount { get; set; }
+    public string? MerchantName { get; set; }
+    public string AccountName { get; set; } = string.Empty;
+
+    public GoalTransactionResponse(Transaction transaction)
+    {
+        ID = transaction.ID;
+        Date = transaction.Date;
+        Amount = transaction.Amount;
+        CountedAmount = Math.Abs(transaction.Amount);
+        MerchantName = transaction.MerchantName;
+        AccountName = transaction.Account?.Name ?? string.Empty;
+    }
+}
+
 public interface IGoalResponse
 {
     Guid ID { get; }
@@ -109,6 +139,7 @@ public interface IGoalResponse
     bool IsManual { get; }
     decimal CurrentAmount { get; }
     IEnumerable<IGoalContributionResponse> Contributions { get; }
+    IEnumerable<IGoalTransactionResponse> Transactions { get; }
     Guid UserID { get; }
 }
 
@@ -130,6 +161,7 @@ public class GoalResponse : IGoalResponse
     public bool IsManual { get; set; } = false;
     public decimal CurrentAmount { get; set; } = 0.0M;
     public IEnumerable<IGoalContributionResponse> Contributions { get; set; } = [];
+    public IEnumerable<IGoalTransactionResponse> Transactions { get; set; } = [];
     public Guid UserID { get; set; } = Guid.NewGuid();
 
     public GoalResponse(Goal goal)
@@ -151,6 +183,10 @@ public class GoalResponse : IGoalResponse
         Contributions = goal
             .Contributions.OrderByDescending(c => c.Date)
             .Select(c => new GoalContributionResponse(c));
+        Transactions = goal
+            .Transactions.Where(t => t.Deleted == null)
+            .OrderByDescending(t => t.Date)
+            .Select(t => new GoalTransactionResponse(t));
         UserID = goal.UserID;
     }
 }

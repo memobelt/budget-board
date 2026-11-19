@@ -394,6 +394,9 @@
   <data name="TransactionNotFoundError" xml:space="preserve">
     <value>The transaction you are trying to access does not exist.</value>
   </data>
+  <data name="TransactionGoalNotManualError" xml:space="preserve">
+    <value>Transações só podem contar para metas que não estão vinculadas a contas.</value>
+  </data>
   <data name="TransactionSplitInvalidAmountError" xml:space="preserve">
     <value>The split amount must be less than the transaction amount.</value>
   </data>

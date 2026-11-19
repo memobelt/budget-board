@@ -391,6 +391,9 @@
   <data name="TransactionNotFoundError" xml:space="preserve">
         <value>La transaction à laquelle vous essayez d’accéder n’existe pas.</value>
   </data>
+  <data name="TransactionGoalNotManualError" xml:space="preserve">
+        <value>Les transactions ne peuvent compter que pour des objectifs non associés à des comptes.</value>
+  </data>
   <data name="TransactionSplitInvalidAmountError" xml:space="preserve">
         <value>Le montant fractionné doit être inférieur au montant de la transaction.</value>
   </data>

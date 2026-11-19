@@ -82,6 +82,8 @@ export interface ITransactionUpdateRequest {
   notes?: string;
   addTags?: string[] | null;
   removeTags?: string[] | null;
+  /** The manual goal this transaction counts towards; null stops counting it. */
+  goalID?: string | null;
 }
 
 export interface ITransactionSplitRequest {
@@ -111,6 +113,8 @@ export interface ITransaction {
   notes: string;
   tags: string[];
   recurringRuleID: string | null;
+  /** The manual goal this transaction counts towards, if any. */
+  goalID: string | null;
   accountName: string;
   source: string;
   accountID: string;

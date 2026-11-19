@@ -40,6 +40,7 @@ public interface ITransactionUpdateRequest
     string? Notes { get; }
     IEnumerable<string>? AddTags { get; }
     IEnumerable<string>? RemoveTags { get; }
+    OptionalField<Guid?> GoalID { get; }
 }
 
 public class TransactionUpdateRequest() : ITransactionUpdateRequest
@@ -54,6 +55,11 @@ public class TransactionUpdateRequest() : ITransactionUpdateRequest
     public string? Notes { get; set; } = null;
     public IEnumerable<string>? AddTags { get; set; } = null;
     public IEnumerable<string>? RemoveTags { get; set; } = null;
+
+    /// <summary>
+    /// The manual goal this transaction should count towards. Set to null to stop counting it.
+    /// </summary>
+    public OptionalField<Guid?> GoalID { get; set; } = new OptionalField<Guid?>();
 
     public TransactionUpdateRequest(Transaction transaction)
         : this()
@@ -151,6 +157,7 @@ public interface ITransactionResponse
     Guid AccountID { get; }
     IReadOnlyList<string> Tags { get; }
     Guid? RecurringRuleID { get; }
+    Guid? GoalID { get; }
     Guid? LinkedTransactionID { get; }
     string? LinkedAccountName { get; }
     DateOnly? LinkedDate { get; }
@@ -176,6 +183,7 @@ public class TransactionResponse : ITransactionResponse
     public Guid AccountID { get; set; } = Guid.Empty;
     public IReadOnlyList<string> Tags { get; set; } = [];
     public Guid? RecurringRuleID { get; set; } = null;
+    public Guid? GoalID { get; set; } = null;
     public Guid? LinkedTransactionID { get; set; } = null;
     public string? LinkedAccountName { get; set; } = null;
     public DateOnly? LinkedDate { get; set; } = null;
@@ -198,6 +206,7 @@ public class TransactionResponse : ITransactionResponse
         Source = transaction.Source;
         AccountID = transaction.AccountID;
         RecurringRuleID = transaction.RecurringRuleID;
+        GoalID = transaction.GoalID;
         Tags =
         [
             .. transaction

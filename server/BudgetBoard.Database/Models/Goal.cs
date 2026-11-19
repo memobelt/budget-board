@@ -56,6 +56,11 @@ public class Goal
     public ICollection<GoalContribution> Contributions { get; set; } = [];
 
     /// <summary>
+    /// Transactions the user has chosen to count towards the goal. Only used by manual goals.
+    /// </summary>
+    public ICollection<Transaction> Transactions { get; set; } = [];
+
+    /// <summary>
     /// Identifier for the user who owns the goal.
     /// </summary>
     public required Guid UserID { get; set; }

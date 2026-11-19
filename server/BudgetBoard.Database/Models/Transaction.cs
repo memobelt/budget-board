@@ -83,6 +83,16 @@ public class Transaction
     public RecurringRule? RecurringRule { get; set; }
 
     /// <summary>
+    /// Identifier for the goal this transaction counts towards, if any. Only manual goals can have transactions.
+    /// </summary>
+    public Guid? GoalID { get; set; } = null;
+
+    /// <summary>
+    /// Reference to the goal this transaction counts towards, if any.
+    /// </summary>
+    public Goal? Goal { get; set; } = null;
+
+    /// <summary>
     /// Tags associated with the transaction.
     /// </summary>
     public ICollection<TransactionTag> TransactionTags { get; set; } = [];

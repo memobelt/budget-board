@@ -1215,6 +1215,150 @@ public class TransactionServiceTests
         );
         updatedTransaction.Amount.Should().Be(100m);
     }
+
+    private TransactionService CreateTransactionServiceForGoalTests(TestHelper helper) =>
+        new(
+            Mock.Of<ILogger<ITransactionService>>(),
+            helper.UserDataContext,
+            Mock.Of<INowProvider>(),
+            Mock.Of<IAutomaticTransactionCategorizerService>(),
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>(),
+            CreateTagService(helper),
+            Mock.Of<IRecurringRuleService>()
+        );
+
+    private static (Account account, Transaction transaction) AddAccountWithTransaction(
+        TestHelper helper
+    )
+    {
+        var account = new AccountFaker(helper.demoUser.Id).Generate();
+        var transaction = new TransactionFaker([account.ID]).Generate();
+        account.Transactions = [transaction];
+        helper.UserDataContext.Accounts.Add(account);
+        return (account, transaction);
+    }
+
+    [Fact]
+    public async Task UpdateTransactionsAsync_WhenGoalIsManual_ShouldCountTransactionTowardsGoal()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionServiceForGoalTests(helper);
+        var (_, transaction) = AddAccountWithTransaction(helper);
+
+        var goal = new GoalFaker(helper.demoUser.Id).Generate();
+        goal.IsManual = true;
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await transactionService.UpdateTransactionsAsync(
+            helper.demoUser.Id,
+            [new TransactionUpdateRequest { ID = transaction.ID, GoalID = goal.ID }]
+        );
+
+        // Assert
+        helper.UserDataContext.Transactions.Single().GoalID.Should().Be(goal.ID);
+    }
+
+    [Fact]
+    public async Task UpdateTransactionsAsync_WhenGoalIDIsNull_ShouldStopCountingTowardsGoal()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionServiceForGoalTests(helper);
+        var (_, transaction) = AddAccountWithTransaction(helper);
+
+        var goal = new GoalFaker(helper.demoUser.Id).Generate();
+        goal.IsManual = true;
+        helper.UserDataContext.Goals.Add(goal);
+        transaction.GoalID = goal.ID;
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await transactionService.UpdateTransactionsAsync(
+            helper.demoUser.Id,
+            [new TransactionUpdateRequest { ID = transaction.ID, GoalID = null }]
+        );
+
+        // Assert
+        helper.UserDataContext.Transactions.Single().GoalID.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateTransactionsAsync_WhenGoalIDNotSpecified_ShouldKeepGoal()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionServiceForGoalTests(helper);
+        var (_, transaction) = AddAccountWithTransaction(helper);
+
+        var goal = new GoalFaker(helper.demoUser.Id).Generate();
+        goal.IsManual = true;
+        helper.UserDataContext.Goals.Add(goal);
+        transaction.GoalID = goal.ID;
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await transactionService.UpdateTransactionsAsync(
+            helper.demoUser.Id,
+            [new TransactionUpdateRequest { ID = transaction.ID, Notes = "updated" }]
+        );
+
+        // Assert
+        helper.UserDataContext.Transactions.Single().GoalID.Should().Be(goal.ID);
+    }
+
+    [Fact]
+    public async Task UpdateTransactionsAsync_WhenGoalIsLinkedToAccounts_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionServiceForGoalTests(helper);
+        var (account, transaction) = AddAccountWithTransaction(helper);
+
+        var goal = new GoalFaker(helper.demoUser.Id).Generate();
+        goal.Accounts = [account];
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        Func<Task> act = async () =>
+            await transactionService.UpdateTransactionsAsync(
+                helper.demoUser.Id,
+                [new TransactionUpdateRequest { ID = transaction.ID, GoalID = goal.ID }]
+            );
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("TransactionGoalNotManualError");
+        helper.UserDataContext.Transactions.Single().GoalID.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateTransactionsAsync_WhenGoalDoesNotExist_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var transactionService = CreateTransactionServiceForGoalTests(helper);
+        var (_, transaction) = AddAccountWithTransaction(helper);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        Func<Task> act = async () =>
+            await transactionService.UpdateTransactionsAsync(
+                helper.demoUser.Id,
+                [new TransactionUpdateRequest { ID = transaction.ID, GoalID = Guid.NewGuid() }]
+            );
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalNotFoundError");
+    }
+
     #endregion
 
     #region DeleteTransactionsAsync

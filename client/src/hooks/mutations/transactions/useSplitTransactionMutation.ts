@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import {
   accountsQueryKey,
   balancesQueryKey,
+  goalsQueryKey,
   institutionsQueryKey,
   tagSuggestionsQueryKey,
   transactionsQueryKey,
@@ -25,6 +26,8 @@ export const useSplitTransactionMutation = () => {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [transactionsQueryKey] });
+      // Splitting changes the amount of a transaction that may count towards a goal.
+      await queryClient.invalidateQueries({ queryKey: [goalsQueryKey] });
       await queryClient.invalidateQueries({
         queryKey: [tagSuggestionsQueryKey],
       });
