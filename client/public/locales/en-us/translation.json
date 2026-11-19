@@ -451,6 +451,7 @@
   "map_accounts": "Map Accounts",
   "mark_as_complete": "Mark as Complete",
   "mark_as_recurring": "Mark as recurring",
+  "match_limit_to_amount_used": "Set limit to amount used ({{amount}})",
   "matched_on": "Matched on",
   "matches_regex": "Matches regex",
   "merchant_name": "Merchant Name",

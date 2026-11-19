@@ -8,6 +8,7 @@ import { Trans, useTranslation } from "react-i18next";
 import CategoryIconPicker from "~/components/CategoryIconPicker/CategoryIconPicker";
 import BudgetMetrics from "../BudgetMetrics/BudgetMetrics";
 import RolloverButton from "../RolloverButton/RolloverButton";
+import MatchSpendingButton from "../MatchSpendingButton/MatchSpendingButton";
 import { useDisclosure } from "@mantine/hooks";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsProvider";
@@ -218,6 +219,17 @@ const BudgetChildItem = (props: BudgetChildItemProps): React.ReactNode => {
       </Stack>
       {isEditing && (
         <Group style={{ alignSelf: "stretch" }} gap="0.25rem" wrap="nowrap">
+          <MatchSpendingButton
+            matchingLimit={Math.max(
+              0,
+              Math.round(props.isIncome ? props.amount : -props.amount),
+            )}
+            currentLimit={props.limit}
+            onMatch={(newLimit) => {
+              newLimitField.setValue(newLimit);
+              handleEdit(newLimit);
+            }}
+          />
           <RolloverButton
             category={props.categoryValue}
             rolloverStartMonth={props.rolloverStartMonth}
