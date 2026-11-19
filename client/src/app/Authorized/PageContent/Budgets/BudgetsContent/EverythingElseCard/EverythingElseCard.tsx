@@ -50,6 +50,8 @@ interface EverythingElseCardProps {
    */
   groups: IEverythingElseGroup[];
   categoryToTransactionsTotalMap: Map<string, number>;
+  /** Recurring transactions still expected, by lowercase category. */
+  categoryToRecurringForecastTotalMap: Map<string, number>;
   selectedDate: Date | null;
   openDetails: (category: string, month: Date | null) => void;
 }
@@ -138,6 +140,7 @@ const EverythingElseCard = (
       value: "",
       label: t(uncategorizedTransactionCategory) as string | undefined,
       amount: props.categoryToTransactionsTotalMap.get("") ?? 0,
+      forecast: props.categoryToRecurringForecastTotalMap.get("") ?? 0,
       isPartial: false,
     },
     ...props.groups
@@ -149,10 +152,19 @@ const EverythingElseCard = (
           group,
           props.categoryToTransactionsTotalMap,
         ),
+        forecast: getEverythingElseGroupTotal(
+          group,
+          props.categoryToRecurringForecastTotalMap,
+        ),
       }))
       .sort((a, b) => a.amount - b.amount),
   ]
-    .filter((row) => roundAwayFromZero(row.amount) !== 0)
+    // Rows with only expected spending (e.g. an upcoming bill) show too.
+    .filter(
+      (row) =>
+        roundAwayFromZero(row.amount) !== 0 ||
+        roundAwayFromZero(row.forecast) !== 0,
+    )
     .map((row) => ({
       ...row,
       // Subcategories with spending, most spent first.
@@ -165,8 +177,16 @@ const EverythingElseCard = (
           amount:
             props.categoryToTransactionsTotalMap.get(sub.value.toLowerCase()) ??
             0,
+          forecast:
+            props.categoryToRecurringForecastTotalMap.get(
+              sub.value.toLowerCase(),
+            ) ?? 0,
         }))
-        .filter((sub) => roundAwayFromZero(sub.amount) !== 0)
+        .filter(
+          (sub) =>
+            roundAwayFromZero(sub.amount) !== 0 ||
+            roundAwayFromZero(sub.forecast) !== 0,
+        )
         .sort((a, b) => a.amount - b.amount),
     }));
 
@@ -301,6 +321,7 @@ const EverythingElseCard = (
                 category={row.value}
                 label={row.label}
                 amount={row.amount}
+                projectedAmount={row.amount + row.forecast}
                 isIncome={false}
                 icon={
                   row.value
@@ -331,6 +352,7 @@ const EverythingElseCard = (
                   <UnbudgetedChildItem
                     category={child.value}
                     amount={child.amount}
+                    projectedAmount={child.amount + child.forecast}
                     isIncome={false}
                     icon={getCategoryIcon(
                       child.value,

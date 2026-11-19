@@ -273,6 +273,9 @@ const BudgetsContent = (props: BudgetsContentProps) => {
               projectedAmount={everythingElseProjectedAmount}
               groups={everythingElseGroups}
               categoryToTransactionsTotalMap={categoryToTransactionsTotalMap}
+              categoryToRecurringForecastTotalMap={
+                categoryToRecurringForecastTotalMap
+              }
               selectedDate={props.selectedDate}
               openDetails={openBudgetDetails}
             />

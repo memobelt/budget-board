@@ -1,10 +1,11 @@
 import classes from "./UnbudgetedChildItem.module.css";
 
-import { Group } from "@mantine/core";
+import { Group, Stack } from "@mantine/core";
 import { ActionIcon, AmountText, BodyText } from "@teelur/budget-board-ui";
 import { ChevronDown, PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SignDisplay } from "~/helpers/currency";
+import { roundAwayFromZero } from "~/helpers/utils";
 import { useCreateBudgetMutation } from "~/hooks/mutations/budgets/useCreateBudgetMutation";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { usePrivacyMode } from "~/providers/PrivacyModeProvider/PrivacyModeProvider";
@@ -25,6 +26,8 @@ interface UnbudgetedChildItemProps {
   isExpanded?: boolean;
   /** Left padding of the row; deeper rows (subcategories) use more. */
   indent?: string;
+  /** The amount plus recurring transactions still expected; shown when it differs. */
+  projectedAmount?: number;
 }
 
 const UnbudgetedChildItem = (
@@ -71,17 +74,37 @@ const UnbudgetedChildItem = (
         </BodyText>
       </Group>
       <Group gap="0.5rem" wrap="nowrap">
-        <AmountText
-          amount={props.amount * (props.isIncome ? 1 : -1)}
-          disableStatusColor
-          size="md"
-          isSensitive={isPrivacyModeEnabled}
-          currency={preferredCurrency}
-          decimalPlaces={0}
-          locale={intlLocale}
-          signDisplay={SignDisplay.Auto}
-          className={classes.text}
-        />
+        <Stack gap={0} align="flex-end">
+          <AmountText
+            amount={props.amount * (props.isIncome ? 1 : -1)}
+            disableStatusColor
+            size="md"
+            isSensitive={isPrivacyModeEnabled}
+            currency={preferredCurrency}
+            decimalPlaces={0}
+            locale={intlLocale}
+            signDisplay={SignDisplay.Auto}
+            className={classes.text}
+          />
+          {props.projectedAmount !== undefined &&
+            roundAwayFromZero(props.projectedAmount - props.amount) !== 0 && (
+              <Group gap="0.25rem" wrap="nowrap" align="baseline">
+                <BodyText tone="secondary" size="xs">
+                  {t("projected_colon")}
+                </BodyText>
+                <AmountText
+                  amount={props.projectedAmount * (props.isIncome ? 1 : -1)}
+                  disableStatusColor
+                  size="sm"
+                  isSensitive={isPrivacyModeEnabled}
+                  currency={preferredCurrency}
+                  decimalPlaces={0}
+                  locale={intlLocale}
+                  signDisplay={SignDisplay.Auto}
+                />
+              </Group>
+            )}
+        </Stack>
         {props.selectedDate && !props.hideAddBudget && (
           <ActionIcon
             variant="filled"
