@@ -6,6 +6,7 @@ import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths"
 import { buildTimeToMonthlyTotalsMap } from "~/helpers/transactions";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { withoutTransfers } from "~/helpers/budgets";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
@@ -24,10 +25,16 @@ const FlowsTab = (): React.ReactNode => {
     })),
   });
 
-  const timeToMonthlyTotalsMap = React.useMemo(
+  // Transfers only move money between accounts, so they're left out of trends.
+  const transactions = React.useMemo(
     () =>
-      buildTimeToMonthlyTotalsMap(selectedMonths, transactionsQuery.data ?? []),
-    [selectedMonths, transactionsQuery.data],
+      withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
+    [transactionsQuery.data, allTransactionCategories],
+  );
+
+  const timeToMonthlyTotalsMap = React.useMemo(
+    () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
+    [selectedMonths, transactions],
   );
 
   return (
@@ -50,7 +57,7 @@ const FlowsTab = (): React.ReactNode => {
         showClearButton
       />
       <FlowsChart
-        transactions={transactionsQuery.data ?? []}
+        transactions={transactions}
         categories={allTransactionCategories}
         isPending={transactionsQuery.isPending}
       />

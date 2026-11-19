@@ -7,6 +7,8 @@ import { Stack } from "@mantine/core";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { withoutTransfers } from "~/helpers/budgets";
+import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
 const NetCashFlowTab = (): React.ReactNode => {
   const monthButtons = [3, 6, 12];
@@ -24,11 +26,18 @@ const NetCashFlowTab = (): React.ReactNode => {
       year: dayjs(month).year(),
     })),
   });
+  const { allTransactionCategories } = useTransactionCategories();
+
+  // Transfers only move money between accounts, so they're left out of trends.
+  const transactions = React.useMemo(
+    () =>
+      withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
+    [transactionsQuery.data, allTransactionCategories],
+  );
 
   const timeToMonthlyTotalsMap = React.useMemo(
-    () =>
-      buildTimeToMonthlyTotalsMap(selectedMonths, transactionsQuery.data ?? []),
-    [selectedMonths, transactionsQuery.data],
+    () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
+    [selectedMonths, transactions],
   );
 
   return (
@@ -51,7 +60,7 @@ const NetCashFlowTab = (): React.ReactNode => {
         showClearButton
       />
       <NetCashFlowChart
-        transactions={transactionsQuery.data ?? []}
+        transactions={transactions}
         months={selectedMonths}
         isPending={transactionsQuery.isPending}
       />

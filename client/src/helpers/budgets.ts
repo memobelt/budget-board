@@ -68,6 +68,17 @@ export const isTransfer = (
   isTransferCategory(item.subcategory, categories);
 
 /**
+ * Leaves out transactions in the Transfer group, which only move money between
+ * accounts and so aren't income or spending.
+ */
+export const withoutTransfers = <
+  T extends { category: string | null; subcategory: string | null },
+>(
+  items: T[],
+  categories: ICategory[],
+): T[] => items.filter((item) => !isTransfer(item, categories));
+
+/**
  * Whether the budget is the reserved "Everything Else" budget rather than a category budget.
  */
 export const isEverythingElseBudget = (budget: IBudget): boolean =>

@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 import { CategoryTypes } from "~/models/category";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { withoutTransfers } from "~/helpers/budgets";
 import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
 
 const SpendingCategoriesTab = (): React.ReactNode => {
@@ -27,10 +28,16 @@ const SpendingCategoriesTab = (): React.ReactNode => {
     })),
   });
 
-  const timeToMonthlyTotalsMap = React.useMemo(
+  // Transfers only move money between accounts, so they're left out of trends.
+  const transactions = React.useMemo(
     () =>
-      buildTimeToMonthlyTotalsMap(selectedMonths, transactionsQuery.data ?? []),
-    [selectedMonths, transactionsQuery.data],
+      withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
+    [transactionsQuery.data, allTransactionCategories],
+  );
+
+  const timeToMonthlyTotalsMap = React.useMemo(
+    () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
+    [selectedMonths, transactions],
   );
 
   const [showSubcategories, setShowSubcategories] = React.useState(true);
@@ -40,11 +47,11 @@ const SpendingCategoriesTab = (): React.ReactNode => {
   );
   const transactionsForSelectedMonths =
     selectedMonths.length > 0
-      ? (transactionsQuery.data ?? []).filter((t) => {
+      ? transactions.filter((t) => {
           const d = new Date(t.date);
           return selectedMonthKeys.has(`${d.getMonth()}-${d.getUTCFullYear()}`);
         })
-      : (transactionsQuery.data ?? []);
+      : transactions;
 
   const expenseCategoryValues = new Set(
     allTransactionCategories
