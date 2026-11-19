@@ -2,6 +2,7 @@ import { Group, Stack } from "@mantine/core";
 import { Button, MonthToolcards } from "@teelur/budget-board-ui";
 import { useDisclosure } from "@mantine/hooks";
 import React from "react";
+import { createPortal } from "react-dom";
 import { initCurrentMonth } from "~/helpers/datetime";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
 import AddBudget from "./AddBudget/AddBudget";
@@ -19,6 +20,11 @@ interface BudgetsToolbarProps {
   timeToMonthlyTotalsMap: Map<number, number>;
   showCopy: boolean;
   isPending: boolean;
+  /**
+   * Where to show the Select Multiple, Copy and Add buttons instead of under
+   * the months, e.g. a slot above the budget summary on wide screens.
+   */
+  actionsTarget?: HTMLElement | null;
 }
 
 const BudgetsToolbar = (props: BudgetsToolbarProps): React.ReactNode => {
@@ -88,6 +94,38 @@ const BudgetsToolbar = (props: BudgetsToolbarProps): React.ReactNode => {
     toggle();
   };
 
+  const actions = (
+    <>
+      <Button
+        variant="filled"
+        color="primary"
+        size="xs"
+        selected={canSelectMultiple}
+        rightSection={<ListChecksIcon size="1rem" />}
+        onClick={toggleSelectMultiple}
+      >
+        {t("select_multiple")}
+      </Button>
+      {props.showCopy && (
+        <Button
+          variant="filled"
+          color="primary"
+          size="xs"
+          onClick={onCopyBudgets}
+          loading={
+            createBudgetMutation.isPending ||
+            previousMonthBudgetsQuery.isPending
+          }
+        >
+          {t("copy_previous")}
+        </Button>
+      )}
+      {props.selectedDates.length === 1 && (
+        <AddBudget date={props.selectedDates[0]!} />
+      )}
+    </>
+  );
+
   return (
     <Stack gap="0.75rem">
       <MonthToolcards
@@ -99,35 +137,13 @@ const BudgetsToolbar = (props: BudgetsToolbarProps): React.ReactNode => {
         allowFutureMonths
         locale={dayjsLocale}
       />
-      <Group justify="right" gap="0.5rem">
-        <Button
-          variant="filled"
-          color="primary"
-          size="xs"
-          selected={canSelectMultiple}
-          rightSection={<ListChecksIcon size="1rem" />}
-          onClick={toggleSelectMultiple}
-        >
-          {t("select_multiple")}
-        </Button>
-        {props.showCopy && (
-          <Button
-            variant="filled"
-            color="primary"
-            size="xs"
-            onClick={onCopyBudgets}
-            loading={
-              createBudgetMutation.isPending ||
-              previousMonthBudgetsQuery.isPending
-            }
-          >
-            {t("copy_previous")}
-          </Button>
-        )}
-        {props.selectedDates.length === 1 && (
-          <AddBudget date={props.selectedDates[0]!} />
-        )}
-      </Group>
+      {props.actionsTarget ? (
+        createPortal(actions, props.actionsTarget)
+      ) : (
+        <Group justify="right" gap="0.5rem">
+          {actions}
+        </Group>
+      )}
     </Stack>
   );
 };

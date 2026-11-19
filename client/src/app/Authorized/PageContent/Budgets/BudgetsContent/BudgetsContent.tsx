@@ -29,6 +29,11 @@ import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import classes from "./BudgetsContent.module.css";
 import { HeadingText } from "@teelur/budget-board-ui";
 
+// The Income heading and the action buttons above the summary share this
+// height, so the heading lines up with the buttons and the Income card with
+// the summary.
+const HEADER_ROW_HEIGHT = "2rem";
+
 interface BudgetsContentProps {
   budgets: IBudget[];
   transactions: ITransaction[];
@@ -36,6 +41,8 @@ interface BudgetsContentProps {
   selectedDate: Date | null;
   isPending?: boolean;
   isTransactionsPending?: boolean;
+  /** Receives the slot above the summary where the page's buttons go. */
+  actionsSlotRef?: (element: HTMLDivElement | null) => void;
 }
 
 const BudgetsContent = (props: BudgetsContentProps) => {
@@ -166,7 +173,9 @@ const BudgetsContent = (props: BudgetsContentProps) => {
   // categories, and the unbudgeted subcategories of budgeted ones, fall into
   // Everything Else along with uncategorized spending.
   const isCategoryBudgeted = (category: string): boolean =>
-    categoryBudgets.some((budget) => areStringsEqual(budget.category, category));
+    categoryBudgets.some((budget) =>
+      areStringsEqual(budget.category, category),
+    );
   const everythingElseGroups = buildEverythingElseGroups(
     categoryTree.filter((category) =>
       areStringsEqual(category.categoryType, CategoryTypes.Expense),
@@ -201,9 +210,11 @@ const BudgetsContent = (props: BudgetsContentProps) => {
       />
       <Stack w={{ base: "100%", md: "70%" }}>
         <Stack gap="0.5rem">
-          <HeadingText tone="heading" level={4}>
-            {t("income")}
-          </HeadingText>
+          <Group h={HEADER_ROW_HEIGHT} align="center">
+            <HeadingText tone="heading" level={4}>
+              {t("income")}
+            </HeadingText>
+          </Group>
           {props.isPending ? (
             <Skeleton h={65} radius="md" />
           ) : (
@@ -273,7 +284,18 @@ const BudgetsContent = (props: BudgetsContentProps) => {
         style={{ flexGrow: 1 }}
         w={{ base: "100%", md: "20%" }}
         h={{ base: "auto", md: "100%" }}
+        gap="0.5rem"
       >
+        {props.actionsSlotRef && (
+          <Group
+            ref={props.actionsSlotRef}
+            h={HEADER_ROW_HEIGHT}
+            justify="flex-end"
+            align="center"
+            gap="0.5rem"
+            wrap="nowrap"
+          />
+        )}
         <BudgetSummaryCard
           incomeCategories={incomeCategoryTree}
           expenseCategories={expenseCategoryTree}
