@@ -245,7 +245,7 @@ public class GoalServiceTests
     }
 
     [Fact]
-    public async Task CreateGoalAsync_WhenNoMonthlyContributionOrCompleteDate_ShouldThrowGoalMissingContributionOrDateError()
+    public async Task CreateGoalAsync_WhenNoMonthlyContributionOrCompleteDate_ShouldCreateOpenEndedGoal()
     {
         // Arrange
         var helper = new TestHelper();
@@ -275,12 +275,37 @@ public class GoalServiceTests
         };
 
         // Act
-        Func<Task> act = async () => await goalService.CreateGoalAsync(helper.demoUser.Id, goal);
+        await goalService.CreateGoalAsync(helper.demoUser.Id, goal);
 
         // Assert
-        await act.Should()
-            .ThrowAsync<BudgetBoardServiceException>()
-            .WithMessage("GoalMissingContributionOrDateError");
+        var addedGoal = helper.UserDataContext.Goals.Single();
+        addedGoal.CompleteDate.Should().BeNull();
+        addedGoal.MonthlyContribution.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateGoalAsync_WhenMonthlyContributionIsZeroAndNoCompleteDate_ShouldStoreNullContribution()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var request = new GoalCreateRequest
+        {
+            Name = "Rainy day",
+            Amount = 1000,
+            MonthlyContribution = 0,
+            CompleteDate = null,
+            IsManual = true,
+        };
+
+        // Act
+        await goalService.CreateGoalAsync(helper.demoUser.Id, request);
+
+        // Assert
+        var addedGoal = helper.UserDataContext.Goals.Single();
+        addedGoal.CompleteDate.Should().BeNull();
+        addedGoal.MonthlyContribution.Should().BeNull();
     }
 
     [Fact]
@@ -672,7 +697,7 @@ public class GoalServiceTests
     }
 
     [Fact]
-    public async Task ReadGoalsAsync_WhenMonthlyContributionIsNull_ShouldReturnUnixEpochForCompleteDate()
+    public async Task ReadGoalsAsync_WhenNoCompleteDateOrMonthlyContribution_ShouldReturnNullCompleteDateAndZeroContribution()
     {
         // Arrange
         var helper = new TestHelper();
@@ -702,7 +727,10 @@ public class GoalServiceTests
         var result = await goalService.ReadGoalsAsync(helper.demoUser.Id, false);
 
         // Assert
-        result.Single().CompleteDate.Should().Be(DateOnly.FromDateTime(DateTime.UnixEpoch));
+        result.Single().CompleteDate.Should().BeNull();
+        result.Single().IsCompleteDateEditable.Should().BeFalse();
+        result.Single().MonthlyContribution.Should().Be(0);
+        result.Single().IsMonthlyContributionEditable.Should().BeFalse();
     }
 
     [Fact]
@@ -1305,7 +1333,7 @@ public class GoalServiceTests
     }
 
     [Fact]
-    public async Task UpdateGoalAsync_WhenBothCompleteDateAndMonthlyContributionNull_ShouldThrowGoalMissingContributionOrDateError()
+    public async Task UpdateGoalAsync_WhenBothCompleteDateAndMonthlyContributionNull_ShouldClearBoth()
     {
         // Arrange
         var helper = new TestHelper();
@@ -1324,7 +1352,7 @@ public class GoalServiceTests
 
         var goalFaker = new GoalFaker(helper.demoUser.Id);
         var goal = goalFaker.Generate();
-        goal.CompleteDate = null;
+        goal.CompleteDate = new DateOnly(2030, 1, 1);
         goal.MonthlyContribution = null;
         goal.Accounts = accounts;
 
@@ -1341,13 +1369,12 @@ public class GoalServiceTests
         };
 
         // Act
-        Func<Task> act = async () =>
-            await goalService.UpdateGoalAsync(helper.demoUser.Id, updatedGoal);
+        await goalService.UpdateGoalAsync(helper.demoUser.Id, updatedGoal);
 
         // Assert
-        await act.Should()
-            .ThrowAsync<BudgetBoardServiceException>()
-            .WithMessage("GoalMissingContributionOrDateError");
+        var savedGoal = helper.UserDataContext.Goals.Single();
+        savedGoal.CompleteDate.Should().BeNull();
+        savedGoal.MonthlyContribution.Should().BeNull();
     }
 
     [Fact]
@@ -1752,6 +1779,360 @@ public class GoalServiceTests
             .UserDataContext.Goals.Single(g => g.ID == completedGoal.ID)
             .Completed.Should()
             .Be(completedGoal.Completed);
+    }
+    #endregion
+
+    #region ManualGoals
+    private static GoalService CreateGoalService(TestHelper helper, INowProvider nowProvider) =>
+        new(
+            Mock.Of<ILogger<IGoalService>>(),
+            helper.UserDataContext,
+            nowProvider,
+            TestHelper.CreateMockLocalizer<ResponseStrings>(),
+            TestHelper.CreateMockLocalizer<LogStrings>()
+        );
+
+    [Fact]
+    public async Task CreateGoalAsync_WhenManual_ShouldCreateGoalWithoutAccounts()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var fakeNowProvider = CreateNowProviderMock(new DateTime(2026, 6, 15));
+        var goalService = CreateGoalService(helper, fakeNowProvider);
+
+        var request = new GoalCreateRequest
+        {
+            Name = "Vacation",
+            Amount = 2000,
+            MonthlyContribution = 200,
+            IsManual = true,
+            StartingAmount = 500,
+        };
+
+        // Act
+        await goalService.CreateGoalAsync(helper.demoUser.Id, request);
+
+        // Assert
+        var addedGoal = helper.UserDataContext.Goals.Single();
+        addedGoal.IsManual.Should().BeTrue();
+        addedGoal.Accounts.Should().BeEmpty();
+        addedGoal.InitialAmount.Should().Be(0);
+        var contribution = helper.UserDataContext.GoalContributions.Single();
+        contribution.Amount.Should().Be(500);
+        contribution.Date.Should().Be(fakeNowProvider.Today);
+        contribution.GoalID.Should().Be(addedGoal.ID);
+    }
+
+    [Fact]
+    public async Task CreateGoalAsync_WhenManualWithoutStartingAmount_ShouldNotCreateContribution()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var request = new GoalCreateRequest
+        {
+            Name = "Vacation",
+            Amount = 2000,
+            MonthlyContribution = 200,
+            IsManual = true,
+        };
+
+        // Act
+        await goalService.CreateGoalAsync(helper.demoUser.Id, request);
+
+        // Assert
+        helper.UserDataContext.Goals.Single().IsManual.Should().BeTrue();
+        helper.UserDataContext.GoalContributions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateGoalAsync_WhenManualWithZeroAmount_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var request = new GoalCreateRequest
+        {
+            Name = "Vacation",
+            Amount = 0,
+            MonthlyContribution = 200,
+            IsManual = true,
+        };
+
+        // Act
+        Func<Task> act = async () => await goalService.CreateGoalAsync(helper.demoUser.Id, request);
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalCreateManualInvalidAmountError");
+    }
+
+    [Fact]
+    public async Task CreateGoalAsync_WhenManualWithAccounts_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var request = new GoalCreateRequest
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            MonthlyContribution = 200,
+            IsManual = true,
+            AccountIds = [Guid.NewGuid()],
+        };
+
+        // Act
+        Func<Task> act = async () => await goalService.CreateGoalAsync(helper.demoUser.Id, request);
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalCreateManualWithAccountsError");
+    }
+
+    [Fact]
+    public async Task ReadGoalsAsync_WhenManual_ShouldComputeProgressFromContributions()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var fakeNowProvider = CreateNowProviderMock(new DateTime(2026, 6, 15));
+        var goalService = CreateGoalService(helper, fakeNowProvider);
+        var today = fakeNowProvider.Today;
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        goal.Contributions.Add(
+            new GoalContribution
+            {
+                Amount = 300,
+                Date = today.AddMonths(-2),
+                GoalID = goal.ID,
+            }
+        );
+        goal.Contributions.Add(
+            new GoalContribution
+            {
+                Amount = 150,
+                Date = today,
+                GoalID = goal.ID,
+            }
+        );
+        goal.Contributions.Add(
+            new GoalContribution
+            {
+                Amount = -50,
+                Date = today.AddDays(-1),
+                GoalID = goal.ID,
+            }
+        );
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        var result = (await goalService.ReadGoalsAsync(helper.demoUser.Id, false)).Single();
+
+        // Assert
+        result.IsManual.Should().BeTrue();
+        result.CurrentAmount.Should().Be(400);
+        result.PercentComplete.Should().Be(40);
+        result.MonthlyContributionProgress.Should().Be(100);
+        // 600 left at 100 / month => 6 months from the first of this month.
+        result.CompleteDate.Should().Be(new DateOnly(2026, 12, 1));
+        result.Contributions.Should().HaveCount(3);
+        result.Contributions.First().Date.Should().Be(today);
+    }
+
+    [Fact]
+    public async Task AddContributionAsync_WhenManualGoal_ShouldAddContribution()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var fakeNowProvider = CreateNowProviderMock(new DateTime(2026, 6, 15));
+        var goalService = CreateGoalService(helper, fakeNowProvider);
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await goalService.AddContributionAsync(
+            helper.demoUser.Id,
+            new GoalContributionCreateRequest { GoalID = goal.ID, Amount = 75 }
+        );
+
+        // Assert
+        var contribution = helper.UserDataContext.GoalContributions.Single();
+        contribution.Amount.Should().Be(75);
+        contribution.Date.Should().Be(fakeNowProvider.Today);
+        contribution.GoalID.Should().Be(goal.ID);
+    }
+
+    [Fact]
+    public async Task AddContributionAsync_WhenGoalHasAccounts_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var goal = new Goal
+        {
+            Name = "Linked",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            UserID = helper.demoUser.Id,
+        };
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        Func<Task> act = async () =>
+            await goalService.AddContributionAsync(
+                helper.demoUser.Id,
+                new GoalContributionCreateRequest { GoalID = goal.ID, Amount = 75 }
+            );
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalContributionNotManualError");
+    }
+
+    [Fact]
+    public async Task AddContributionAsync_WhenAmountIsZero_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        Func<Task> act = async () =>
+            await goalService.AddContributionAsync(
+                helper.demoUser.Id,
+                new GoalContributionCreateRequest { GoalID = goal.ID, Amount = 0 }
+            );
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalContributionZeroAmountError");
+    }
+
+    [Fact]
+    public async Task DeleteContributionAsync_ShouldRemoveContribution()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 1000,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        var contribution = new GoalContribution
+        {
+            Amount = 100,
+            Date = DateOnly.FromDateTime(DateTime.Today),
+            GoalID = goal.ID,
+        };
+        goal.Contributions.Add(contribution);
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await goalService.DeleteContributionAsync(helper.demoUser.Id, contribution.ID);
+
+        // Assert
+        helper.UserDataContext.GoalContributions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteContributionAsync_WhenNotFound_ShouldThrow()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var goalService = CreateGoalService(helper, CreateNowProviderMock());
+
+        // Act
+        Func<Task> act = async () =>
+            await goalService.DeleteContributionAsync(helper.demoUser.Id, Guid.NewGuid());
+
+        // Assert
+        await act.Should()
+            .ThrowAsync<BudgetBoardServiceException>()
+            .WithMessage("GoalContributionNotFoundError");
+    }
+
+    [Fact]
+    public async Task CompleteEligibleGoalsAsync_WhenManualGoalReachesTarget_ShouldComplete()
+    {
+        // Arrange
+        var helper = new TestHelper();
+        var fakeNowProvider = CreateNowProviderMock(new DateTime(2026, 6, 15));
+        var goalService = CreateGoalService(helper, fakeNowProvider);
+
+        var goal = new Goal
+        {
+            Name = "Vacation",
+            Amount = 500,
+            InitialAmount = 0,
+            MonthlyContribution = 100,
+            IsManual = true,
+            UserID = helper.demoUser.Id,
+        };
+        goal.Contributions.Add(
+            new GoalContribution
+            {
+                Amount = 500,
+                Date = fakeNowProvider.Today,
+                GoalID = goal.ID,
+            }
+        );
+        helper.UserDataContext.Goals.Add(goal);
+        helper.UserDataContext.SaveChanges();
+
+        // Act
+        await goalService.CompleteEligibleGoalsAsync(helper.demoUser.Id);
+
+        // Assert
+        helper.UserDataContext.Goals.Single().Completed.Should().Be(fakeNowProvider.Today);
     }
     #endregion
 

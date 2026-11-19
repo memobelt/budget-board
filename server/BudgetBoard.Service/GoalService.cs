@@ -23,18 +23,12 @@ public class GoalService(
     {
         var userData = await GetCurrentUserAsync(userGuid);
 
-        if (
-            (request.MonthlyContribution == 0 || !request.MonthlyContribution.HasValue)
-            && !request.CompleteDate.HasValue
-        )
-        {
-            logger.LogError("{LogMessage}", logLocalizer["GoalMissingContributionOrDateLog"]);
-            throw new BudgetBoardServiceException(
-                responseLocalizer["GoalMissingContributionOrDateError"]
-            );
-        }
+        // A goal may have a target date, a monthly contribution, or neither (an open-ended goal).
+        // A monthly contribution of zero is treated as not set.
+        var monthlyContribution =
+            request.MonthlyContribution == 0 ? null : request.MonthlyContribution;
 
-        if (request.MonthlyContribution.HasValue && request.CompleteDate.HasValue)
+        if (monthlyContribution.HasValue && request.CompleteDate.HasValue)
         {
             logger.LogError("{LogMessage}", logLocalizer["GoalBothDateAndContributionLog"]);
             throw new BudgetBoardServiceException(
@@ -46,6 +40,12 @@ public class GoalService(
         {
             logger.LogError("{LogMessage}", logLocalizer["GoalCreatePastDateLog"]);
             throw new BudgetBoardServiceException(responseLocalizer["GoalCreateInPastError"]);
+        }
+
+        if (request.IsManual)
+        {
+            await CreateManualGoalAsync(userData, request, monthlyContribution);
+            return;
         }
 
         if (!request.AccountIds.Any())
@@ -78,10 +78,59 @@ public class GoalService(
             CompleteDate = request.CompleteDate,
             Amount = request.Amount,
             InitialAmount = request.ApplyExistingBalanceTowardsGoal ? 0.0M : runningBalance,
-            MonthlyContribution = request.MonthlyContribution,
+            MonthlyContribution = monthlyContribution,
             Accounts = accounts,
             UserID = userData.Id,
         };
+
+        userDataContext.Goals.Add(newGoal);
+        await userDataContext.SaveChangesAsync();
+    }
+
+    private async Task CreateManualGoalAsync(
+        ApplicationUser userData,
+        IGoalCreateRequest request,
+        decimal? monthlyContribution
+    )
+    {
+        if (request.Amount <= 0)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalCreateManualInvalidAmountLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["GoalCreateManualInvalidAmountError"]
+            );
+        }
+
+        if (request.AccountIds.Any())
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalCreateManualWithAccountsLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["GoalCreateManualWithAccountsError"]
+            );
+        }
+
+        var newGoal = new Goal
+        {
+            Name = request.Name,
+            CompleteDate = request.CompleteDate,
+            Amount = request.Amount,
+            InitialAmount = 0.0M,
+            MonthlyContribution = monthlyContribution,
+            IsManual = true,
+            UserID = userData.Id,
+        };
+
+        if (request.StartingAmount is decimal startingAmount && startingAmount != 0)
+        {
+            newGoal.Contributions.Add(
+                new GoalContribution
+                {
+                    Amount = startingAmount,
+                    Date = nowProvider.Today,
+                    GoalID = newGoal.ID,
+                }
+            );
+        }
 
         userDataContext.Goals.Add(newGoal);
         await userDataContext.SaveChangesAsync();
@@ -108,9 +157,8 @@ public class GoalService(
                     MonthlyContribution = EstimateGoalMonthlyContribution(goal, includeInterest),
                     // Have to manually set this, since we override the MonthlyContribution in the constructor.
                     IsMonthlyContributionEditable = goal.MonthlyContribution != null,
-                    MonthlyContributionProgress = GetGoalMonthlyContributionProgress(
-                        goal.Accounts.SelectMany(a => a.Transactions)
-                    ),
+                    MonthlyContributionProgress = GetGoalMonthlyContributionProgress(goal),
+                    CurrentAmount = GetGoalBalance(goal) - goal.InitialAmount,
                     InterestRate = CalculateAverageInterestRate(goal),
                     PercentComplete = CalculatePercentComplete(goal),
                 }
@@ -125,22 +173,6 @@ public class GoalService(
     {
         var userData = await GetCurrentUserAsync(userGuid);
         var goal = GetGoalById(userData, request.ID);
-
-        if (
-            request.CompleteDate.IsSpecified
-            && !request.CompleteDate.Value.HasValue
-            && request.MonthlyContribution.IsSpecified
-            && (
-                !request.MonthlyContribution.Value.HasValue
-                || request.MonthlyContribution.Value <= 0
-            )
-        )
-        {
-            logger.LogError("{LogMessage}", logLocalizer["GoalMissingContributionOrDateLog"]);
-            throw new BudgetBoardServiceException(
-                responseLocalizer["GoalMissingContributionOrDateError"]
-            );
-        }
 
         if (
             request.CompleteDate.IsSpecified
@@ -251,6 +283,59 @@ public class GoalService(
         await userDataContext.SaveChangesAsync();
     }
 
+    /// <inheritdoc />
+    public async Task AddContributionAsync(Guid userGuid, IGoalContributionCreateRequest request)
+    {
+        var userData = await GetCurrentUserAsync(userGuid);
+        var goal = GetGoalById(userData, request.GoalID);
+
+        if (!goal.IsManual)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalContributionNotManualLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["GoalContributionNotManualError"]
+            );
+        }
+
+        if (request.Amount == 0)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalContributionZeroAmountLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["GoalContributionZeroAmountError"]
+            );
+        }
+
+        var contribution = new GoalContribution
+        {
+            Amount = request.Amount,
+            Date = request.Date ?? nowProvider.Today,
+            GoalID = goal.ID,
+        };
+
+        userDataContext.GoalContributions.Add(contribution);
+        await userDataContext.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteContributionAsync(Guid userGuid, Guid contributionId)
+    {
+        var userData = await GetCurrentUserAsync(userGuid);
+
+        var contribution = userData
+            .Goals.SelectMany(g => g.Contributions)
+            .FirstOrDefault(c => c.ID == contributionId);
+        if (contribution == null)
+        {
+            logger.LogError("{LogMessage}", logLocalizer["GoalContributionNotFoundLog"]);
+            throw new BudgetBoardServiceException(
+                responseLocalizer["GoalContributionNotFoundError"]
+            );
+        }
+
+        userDataContext.GoalContributions.Remove(contribution);
+        await userDataContext.SaveChangesAsync();
+    }
+
     private async Task<ApplicationUser> GetCurrentUserAsync(Guid id)
     {
         return await UserDataServiceHelper.GetCurrentUserAsync(
@@ -262,10 +347,12 @@ public class GoalService(
             users =>
                 users
                     .Include(u => u.Goals)
-                    .ThenInclude((g) => g.Accounts)
-                    .ThenInclude((a) => a.Transactions)
+                        .ThenInclude((g) => g.Accounts)
+                            .ThenInclude((a) => a.Transactions)
+                    .Include(u => u.Goals)
+                        .ThenInclude(g => g.Contributions)
                     .Include(u => u.Accounts)
-                    .ThenInclude(a => a.Balances)
+                        .ThenInclude(a => a.Balances)
         );
     }
 
@@ -281,23 +368,21 @@ public class GoalService(
         return goal;
     }
 
-    private DateOnly EstimateGoalCompleteDate(Goal goal, bool includeInterest = false)
+    private DateOnly? EstimateGoalCompleteDate(Goal goal, bool includeInterest = false)
     {
         if (goal.CompleteDate.HasValue)
         {
             return goal.CompleteDate.Value;
         }
 
-        // If a complete date has not been set, then a monthly contribution is required.
+        // Open-ended goals have neither a target date nor a monthly contribution,
+        // so there is no completion date to project.
         if (goal.MonthlyContribution == null || goal.MonthlyContribution == 0)
         {
-            logger.LogError("{LogMessage}", logLocalizer["GoalEstimateNoMonthlyContributionLog"]);
-            return DateOnly.FromDateTime(DateTime.UnixEpoch);
+            return null;
         }
 
-        decimal totalBalance = goal.Accounts.Sum(a =>
-            a.Balances.OrderByDescending(b => b.Date).FirstOrDefault()?.Amount ?? 0
-        );
+        decimal totalBalance = GetGoalBalance(goal);
         decimal amountLeft;
         if (goal.InitialAmount < 0)
         {
@@ -373,16 +458,13 @@ public class GoalService(
             return goal.MonthlyContribution.Value;
         }
 
-        // If a monthly contribution has not been set, then a complete date is required.
+        // Open-ended goals have neither a monthly contribution nor a target date.
         if (!goal.CompleteDate.HasValue)
         {
-            logger.LogError("{LogMessage}", logLocalizer["GoalEstimateNoCompleteDateLog"]);
             return 0;
         }
 
-        decimal totalBalance = goal.Accounts.Sum(a =>
-            a.Balances.OrderByDescending(b => b.Date).FirstOrDefault()?.Amount ?? 0
-        );
+        decimal totalBalance = GetGoalBalance(goal);
         decimal amountLeft;
         if (goal.Amount == 0)
         {
@@ -463,7 +545,37 @@ public class GoalService(
         return monthlyPaymentsWithoutInterest;
     }
 
-    private decimal GetGoalMonthlyContributionProgress(IEnumerable<Transaction> transactions)
+    /// <summary>
+    /// Returns the goal's current total: the sum of logged contributions for manual goals,
+    /// or the sum of the latest balances of the linked accounts otherwise.
+    /// </summary>
+    private static decimal GetGoalBalance(Goal goal)
+    {
+        if (goal.IsManual)
+        {
+            return goal.Contributions.Sum(c => c.Amount);
+        }
+
+        return goal.Accounts.Sum(a =>
+            a.Balances.OrderByDescending(b => b.Date).FirstOrDefault()?.Amount ?? 0
+        );
+    }
+
+    private decimal GetGoalMonthlyContributionProgress(Goal goal)
+    {
+        if (goal.IsManual)
+        {
+            return goal
+                .Contributions.Where(c =>
+                    c.Date.Year == nowProvider.Today.Year && c.Date.Month == nowProvider.Today.Month
+                )
+                .Sum(c => c.Amount);
+        }
+
+        return GetTransactionsMonthlyProgress(goal.Accounts.SelectMany(a => a.Transactions));
+    }
+
+    private decimal GetTransactionsMonthlyProgress(IEnumerable<Transaction> transactions)
     {
         if (!transactions.Any())
         {
@@ -497,9 +609,7 @@ public class GoalService(
             return 0.0M;
         }
 
-        var accountsTotalBalance = goal.Accounts.Sum(a =>
-            a.Balances.OrderByDescending(b => b.Date).FirstOrDefault()?.Amount ?? 0
-        );
+        var accountsTotalBalance = GetGoalBalance(goal);
         decimal currentProgress = accountsTotalBalance - goal.InitialAmount;
         decimal percentComplete = currentProgress / effectiveTargetAmount * 100.0M;
 

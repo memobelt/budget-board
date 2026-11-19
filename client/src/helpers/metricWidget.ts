@@ -21,7 +21,7 @@ import {
 } from "~/models/metricWidget";
 import { CategoryTypes, ITransactionCategory } from "~/models/category";
 import { convertNumberToCurrency, SignDisplay } from "~/helpers/currency";
-import { getGoalTargetAmount } from "~/helpers/goals";
+import { getGoalCurrentAmount, getGoalTargetAmount } from "~/helpers/goals";
 import { filterVisibleAccounts, getAccountsOfTypes } from "~/helpers/accounts";
 import { getVisibleTransactions } from "~/helpers/transactions";
 import { areStringsEqual } from "~/helpers/utils";
@@ -655,10 +655,7 @@ function resolveGoals(
     case "target":
       return getGoalTargetAmount(goal.amount, goal.initialAmount);
     case "current_amount":
-      return (
-        goal.accounts.reduce((n, a) => n + a.currentBalance, 0) -
-        goal.initialAmount
-      );
+      return getGoalCurrentAmount(goal);
     case "monthly_contribution":
       return goal.monthlyContribution;
     default:

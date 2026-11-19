@@ -7,6 +7,7 @@ import AccountMultiSelect from "~/components/AccountMultiSelect/AccountMultiSele
 import { useTranslation } from "react-i18next";
 import { useField } from "@mantine/form";
 import SaveGoalOptions from "./SaveGoalOptions/SaveGoalOptions";
+import ManualGoalOptions from "./ManualGoalOptions/ManualGoalOptions";
 import { useDidUpdate } from "@mantine/hooks";
 
 export interface IGoalConfiguration {
@@ -14,6 +15,7 @@ export interface IGoalConfiguration {
   accounts: string[];
   targetAmount: number;
   applyAccountAmount: boolean;
+  startingAmount: number;
 }
 
 interface ConfigureGoalProps {
@@ -41,17 +43,24 @@ const ConfigureGoal = (props: ConfigureGoalProps): React.ReactNode => {
   const goalApplyAccountAmountField = useField<boolean>({
     initialValue: props.goalConfiguration.applyAccountAmount,
   });
+  const goalStartingAmountField = useField<number>({
+    initialValue: props.goalConfiguration.startingAmount,
+  });
+
+  const isManualGoal = props.selectedGoalType === GoalType.ManualGoal;
 
   useDidUpdate(() => {
     goalNameField.reset();
     goalAccountsField.reset();
     goalTargetAmountField.reset();
     goalApplyAccountAmountField.reset();
+    goalStartingAmountField.reset();
     props.setGoalConfiguration({
       name: "",
       accounts: [],
       targetAmount: 0,
       applyAccountAmount: false,
+      startingAmount: 0,
     });
   }, [props.selectedGoalType]);
 
@@ -61,20 +70,22 @@ const ConfigureGoal = (props: ConfigureGoalProps): React.ReactNode => {
       accounts: goalAccountsField.getValue(),
       targetAmount: goalTargetAmountField.getValue(),
       applyAccountAmount: goalApplyAccountAmountField.getValue(),
+      startingAmount: goalStartingAmountField.getValue(),
     });
   }, [
     goalNameField.getValue(),
     goalAccountsField.getValue(),
     goalTargetAmountField.getValue(),
     goalApplyAccountAmountField.getValue(),
+    goalStartingAmountField.getValue(),
   ]);
 
   const isNextButtonDisabled = () => {
     let disabled =
       goalNameField.getValue().trim() === "" ||
-      goalAccountsField.getValue().length === 0;
+      (!isManualGoal && goalAccountsField.getValue().length === 0);
 
-    if (props.selectedGoalType === GoalType.SaveGoal) {
+    if (props.selectedGoalType === GoalType.SaveGoal || isManualGoal) {
       disabled = disabled || goalTargetAmountField.getValue() <= 0;
     }
 
@@ -89,14 +100,22 @@ const ConfigureGoal = (props: ConfigureGoalProps): React.ReactNode => {
           placeholder={t("enter_goal_name")}
           {...goalNameField.getInputProps()}
         />
-        <AccountMultiSelect
-          label={t("accounts")}
-          {...goalAccountsField.getInputProps()}
-        />
+        {!isManualGoal && (
+          <AccountMultiSelect
+            label={t("accounts")}
+            {...goalAccountsField.getInputProps()}
+          />
+        )}
         {props.selectedGoalType === GoalType.SaveGoal && (
           <SaveGoalOptions
             targetAmountField={goalTargetAmountField}
             applyAccountAmountField={goalApplyAccountAmountField}
+          />
+        )}
+        {isManualGoal && (
+          <ManualGoalOptions
+            targetAmountField={goalTargetAmountField}
+            startingAmountField={goalStartingAmountField}
           />
         )}
       </Stack>
@@ -119,9 +138,10 @@ const ConfigureGoal = (props: ConfigureGoalProps): React.ReactNode => {
           onClick={() => {
             props.setGoalConfiguration({
               name: goalNameField.getValue(),
-              accounts: goalAccountsField.getValue(),
+              accounts: isManualGoal ? [] : goalAccountsField.getValue(),
               targetAmount: goalTargetAmountField.getValue(),
               applyAccountAmount: goalApplyAccountAmountField.getValue(),
+              startingAmount: goalStartingAmountField.getValue(),
             });
             props.launchNextDialog();
           }}

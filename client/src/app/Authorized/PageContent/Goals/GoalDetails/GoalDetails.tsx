@@ -16,6 +16,8 @@ import { IBalanceResponse } from "~/models/balance";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useBalancesQuery } from "~/hooks/queries/useBalancesQuery";
+import AddGoalContribution from "../GoalContributions/AddGoalContribution";
+import GoalContributionsList from "../GoalContributions/GoalContributionsList";
 
 interface GoalDetailsProps {
   goal: IGoalResponse | null;
@@ -28,7 +30,7 @@ const GoalDetails = (props: GoalDetailsProps): React.ReactNode => {
   const { dayjs } = useLocale();
   const balancesQuery = useBalancesQuery({
     accountIds: props.goal?.accounts.map((account) => account.id) ?? [],
-    enabled: props.isOpen && props.goal !== null,
+    enabled: props.isOpen && props.goal !== null && !props.goal.isManual,
   });
 
   const [chartLookbackMonths, setChartLookbackMonths] = React.useState(3);
@@ -41,6 +43,23 @@ const GoalDetails = (props: GoalDetailsProps): React.ReactNode => {
   const getContent = () => {
     if (props.goal === null) {
       return <Skeleton height={425} radius="lg" />;
+    }
+
+    if (props.goal.isManual) {
+      return (
+        <CollapsibleCard
+          title={
+            <HeadingText tone="heading" level={5}>
+              {t("contributions")}
+            </HeadingText>
+          }
+        >
+          <Stack gap="0.5rem">
+            <AddGoalContribution goalId={props.goal.id} showDate />
+            <GoalContributionsList contributions={props.goal.contributions} />
+          </Stack>
+        </CollapsibleCard>
+      );
     }
 
     return (

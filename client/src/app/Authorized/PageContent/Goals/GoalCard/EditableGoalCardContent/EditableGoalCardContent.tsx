@@ -13,14 +13,14 @@ import {
   BodyText,
 } from "@teelur/budget-board-ui";
 import React from "react";
-import { sumAccountsTotalBalance } from "~/helpers/accounts";
 import { getCurrencySymbol, SignDisplay } from "~/helpers/currency";
 import { IGoalResponse } from "~/models/goal";
 import { NotificationType, showNotification } from "~/helpers/notifications";
 import { PencilIcon, TrashIcon } from "lucide-react";
 import { useField } from "@mantine/form";
 import { DateValue } from "@mantine/dates";
-import { getGoalTargetAmount } from "~/helpers/goals";
+import { getGoalCurrentAmount, getGoalTargetAmount } from "~/helpers/goals";
+import AddGoalContribution from "../../GoalContributions/AddGoalContribution";
 import { StatusColorType } from "~/helpers/budgets";
 import { Trans, useTranslation } from "react-i18next";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
@@ -69,8 +69,13 @@ const EditableGoalCardContent = (
       : null,
   });
 
+  // A goal with neither a target date nor a monthly contribution. Either can be added while editing.
+  const isOpenEnded =
+    props.goal.completeDate === null &&
+    !props.goal.isMonthlyContributionEditable;
+
   const getElementForMonthlyContribution = () => {
-    if (props.goal.isMonthlyContributionEditable) {
+    if (props.goal.isMonthlyContributionEditable || isOpenEnded) {
       return (
         <Flex onClick={(e) => e.stopPropagation()}>
           <NumberInput
@@ -83,12 +88,21 @@ const EditableGoalCardContent = (
             decimalScale={decimalPlaces}
             {...goalMonthlyContributionField.getInputProps()}
             onBlur={() => {
-              if (goalMonthlyContributionField.getValue() > 0) {
+              const value = Number(goalMonthlyContributionField.getValue());
+              if (value > 0) {
+                if (value !== props.goal.monthlyContribution) {
+                  updateGoalMutation.mutate({
+                    id: props.goal.id,
+                    monthlyContribution: value,
+                  });
+                }
+              } else if (props.goal.isMonthlyContributionEditable) {
+                // Clearing the monthly contribution makes the goal open-ended.
                 updateGoalMutation.mutate({
                   id: props.goal.id,
-                  monthlyContribution: goalMonthlyContributionField.getValue(),
+                  monthlyContribution: null,
                 });
-              } else {
+              } else if (value < 0) {
                 showNotification({
                   type: NotificationType.Error,
                   message: t("invalid_monthly_contribution"),
@@ -115,7 +129,7 @@ const EditableGoalCardContent = (
   };
 
   const getElementForCompleteDate = () => {
-    if (props.goal.isCompleteDateEditable) {
+    if (props.goal.isCompleteDateEditable || isOpenEnded) {
       return (
         <Flex
           onClick={(e) => {
@@ -124,10 +138,24 @@ const EditableGoalCardContent = (
         >
           <DateInput
             className="h-8"
+            clearable
+            placeholder={t("no_target_date")}
             {...goalTargetDateField.getInputProps()}
             locale={dayjsLocale}
             valueFormat={longDateFormat}
             onChange={(date) => {
+              if (date === null) {
+                // Clearing the date makes the goal open-ended.
+                goalTargetDateField.setValue(null);
+                if (props.goal.isCompleteDateEditable) {
+                  updateGoalMutation.mutate({
+                    id: props.goal.id,
+                    completeDate: null,
+                  });
+                }
+                return;
+              }
+
               const parsedDate = dayjs(date);
 
               if (parsedDate.isValid()) {
@@ -150,7 +178,9 @@ const EditableGoalCardContent = (
 
     return (
       <BodyText tone="primary" size="sm" key="date-not-edit">
-        {dayjs(props.goal.completeDate).format("MMMM YYYY")}
+        {props.goal.completeDate
+          ? dayjs(props.goal.completeDate).format("MMMM YYYY")
+          : t("no_target_date")}
       </BodyText>
     );
   };
@@ -281,10 +311,7 @@ const EditableGoalCardContent = (
                 i18nKey="x_of_y"
                 components={[
                   <AmountText
-                    amount={
-                      sumAccountsTotalBalance(props.goal.accounts) -
-                      props.goal.initialAmount
-                    }
+                    amount={getGoalCurrentAmount(props.goal)}
                     size="lg"
                     disableStatusColor
                     isSensitive={isPrivacyModeEnabled}
@@ -336,6 +363,9 @@ const EditableGoalCardContent = (
               />
             </Flex>
           </Flex>
+          {props.goal.isManual && (
+            <AddGoalContribution goalId={props.goal.id} />
+          )}
         </Stack>
         <Group style={{ alignSelf: "stretch" }}>
           <ActionIcon

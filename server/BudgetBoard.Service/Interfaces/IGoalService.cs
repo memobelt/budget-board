@@ -50,4 +50,18 @@ public interface IGoalService
     /// <param name="userGuid">The unique identifier of the user.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task CompleteEligibleGoalsAsync(Guid userGuid);
+
+    /// <summary>
+    /// Logs a manual contribution towards a manual goal.
+    /// </summary>
+    /// <param name="userGuid">The unique identifier of the user.</param>
+    /// <param name="request">The contribution details.</param>
+    Task AddContributionAsync(Guid userGuid, IGoalContributionCreateRequest request);
+
+    /// <summary>
+    /// Deletes a manual contribution.
+    /// </summary>
+    /// <param name="userGuid">The unique identifier of the user.</param>
+    /// <param name="contributionId">The unique identifier of the contribution to delete.</param>
+    Task DeleteContributionAsync(Guid userGuid, Guid contributionId);
 }

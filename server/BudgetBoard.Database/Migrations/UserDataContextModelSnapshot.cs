@@ -451,6 +451,9 @@ namespace BudgetBoard.Database.Migrations
                     b.Property<decimal>("InitialAmount")
                         .HasColumnType("numeric");
 
+                    b.Property<bool>("IsManual")
+                        .HasColumnType("boolean");
+
                     b.Property<decimal?>("MonthlyContribution")
                         .HasColumnType("numeric");
 
@@ -466,6 +469,28 @@ namespace BudgetBoard.Database.Migrations
                     b.HasIndex("UserID");
 
                     b.ToTable("Goal", (string)null);
+                });
+
+            modelBuilder.Entity("BudgetBoard.Database.Models.GoalContribution", b =>
+                {
+                    b.Property<Guid>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("GoalID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("GoalID");
+
+                    b.ToTable("GoalContribution", (string)null);
                 });
 
             modelBuilder.Entity("BudgetBoard.Database.Models.Institution", b =>
@@ -1343,6 +1368,17 @@ namespace BudgetBoard.Database.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BudgetBoard.Database.Models.GoalContribution", b =>
+                {
+                    b.HasOne("BudgetBoard.Database.Models.Goal", "Goal")
+                        .WithMany("Contributions")
+                        .HasForeignKey("GoalID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Goal");
+                });
+
             modelBuilder.Entity("BudgetBoard.Database.Models.Institution", b =>
                 {
                     b.HasOne("BudgetBoard.Database.Models.ApplicationUser", "User")
@@ -1670,6 +1706,11 @@ namespace BudgetBoard.Database.Migrations
                     b.Navigation("Actions");
 
                     b.Navigation("Conditions");
+                });
+
+            modelBuilder.Entity("BudgetBoard.Database.Models.Goal", b =>
+                {
+                    b.Navigation("Contributions");
                 });
 
             modelBuilder.Entity("BudgetBoard.Database.Models.Institution", b =>

@@ -16,6 +16,7 @@ const SelectType = (props: SelectTypeProps): React.ReactNode => {
   const goalTypes: { label: string; value: string }[] = [
     { label: t("grow_my_funds"), value: GoalType.SaveGoal },
     { label: t("pay_off_debt"), value: GoalType.PayGoal },
+    { label: t("save_without_linking_an_account"), value: GoalType.ManualGoal },
   ];
 
   return (

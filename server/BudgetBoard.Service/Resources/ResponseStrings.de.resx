@@ -211,6 +211,21 @@
   <data name="GoalNotFoundError" xml:space="preserve">
         <value>Das Ziel, auf das Sie zugreifen möchten, existiert nicht.</value>
   </data>
+  <data name="GoalCreateManualInvalidAmountError" xml:space="preserve">
+        <value>Ein manuelles Ziel muss einen Zielbetrag größer als null haben.</value>
+  </data>
+  <data name="GoalCreateManualWithAccountsError" xml:space="preserve">
+        <value>Ein manuelles Ziel kann nicht mit Konten verknüpft werden.</value>
+  </data>
+  <data name="GoalContributionNotManualError" xml:space="preserve">
+        <value>Beiträge können nur zu Zielen hinzugefügt werden, die nicht mit Konten verknüpft sind.</value>
+  </data>
+  <data name="GoalContributionZeroAmountError" xml:space="preserve">
+        <value>Der Beitragsbetrag darf nicht null sein.</value>
+  </data>
+  <data name="GoalContributionNotFoundError" xml:space="preserve">
+        <value>Der Beitrag, auf den Sie zugreifen möchten, existiert nicht.</value>
+  </data>
   <data name="GoalUpdateNoMonthlyContributionError" xml:space="preserve">
         <value>Ein Ziel muss einen monatlichen Beitrag von mehr als 0 haben.</value>
   </data>

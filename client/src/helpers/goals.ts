@@ -1,3 +1,4 @@
+import { sumAccountsTotalBalance } from "~/helpers/accounts";
 import { IGoalResponse } from "~/models/goal";
 import { ITransaction } from "~/models/transaction";
 
@@ -14,12 +15,29 @@ import { ITransaction } from "~/models/transaction";
  */
 export const getGoalTargetAmount = (
   amount: number,
-  initialAmount: number
+  initialAmount: number,
 ): number => {
   if (initialAmount < 0) {
     return Math.abs(initialAmount);
   }
   return amount;
+};
+
+/**
+ * Returns how much progress has been made towards a goal.
+ *
+ * Manual goals are not linked to accounts, so their progress is the sum of the contributions
+ * the user has logged (computed by the server). Account-linked goals use the current balance of
+ * their accounts minus the balance when the goal was created.
+ *
+ * @param {IGoalResponse} goal - The goal to evaluate.
+ * @returns {number} The amount saved (or paid off) towards the goal so far.
+ */
+export const getGoalCurrentAmount = (goal: IGoalResponse): number => {
+  if (goal.isManual) {
+    return goal.currentAmount;
+  }
+  return sumAccountsTotalBalance(goal.accounts) - goal.initialAmount;
 };
 
 /**
@@ -34,7 +52,7 @@ export const getGoalTargetAmount = (
  */
 export const sumTransactionsForGoalForMonth = (
   goal: IGoalResponse,
-  transactionsForMonth: ITransaction[]
+  transactionsForMonth: ITransaction[],
 ): number =>
   transactionsForMonth
     .filter((t) => goal.accounts.some((a) => a.id === t.accountID))

@@ -10,7 +10,7 @@ import ConfigureGoal, {
 } from "./ConfigureGoal/ConfigureGoal";
 import SetTarget from "./SetTarget/SetTarget";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
-import { IGoalCreateRequest } from "~/models/goal";
+import { GoalType, IGoalCreateRequest } from "~/models/goal";
 import { useCreateGoalMutation } from "~/hooks/mutations/goals/useCreateGoalMutation";
 
 const AddGoalModal = (): React.ReactNode => {
@@ -23,6 +23,7 @@ const AddGoalModal = (): React.ReactNode => {
       accounts: [],
       targetAmount: 0,
       applyAccountAmount: false,
+      startingAmount: 0,
     });
 
   const [isOpen, { open, close }] = useDisclosure();
@@ -40,6 +41,7 @@ const AddGoalModal = (): React.ReactNode => {
         accounts: [],
         targetAmount: 0,
         applyAccountAmount: false,
+        startingAmount: 0,
       });
       setActiveStep(0);
     }
@@ -50,6 +52,7 @@ const AddGoalModal = (): React.ReactNode => {
     monthlyContribution: number,
   ) => {
     const parsedCompleteDate = dayjs(completeDate);
+    const isManual = selectedGoalType === GoalType.ManualGoal;
     const newGoal: IGoalCreateRequest = {
       name: goalConfiguration.name,
       completeDate: parsedCompleteDate.isValid()
@@ -59,7 +62,12 @@ const AddGoalModal = (): React.ReactNode => {
       applyExistingBalanceTowardsGoal: goalConfiguration.applyAccountAmount,
       monthlyContribution:
         monthlyContribution === 0 ? null : monthlyContribution,
-      accountIds: goalConfiguration.accounts,
+      accountIds: isManual ? [] : goalConfiguration.accounts,
+      isManual,
+      startingAmount:
+        isManual && goalConfiguration.startingAmount !== 0
+          ? goalConfiguration.startingAmount
+          : null,
     };
 
     createGoalMutation.mutate(newGoal, {

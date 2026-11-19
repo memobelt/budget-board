@@ -110,4 +110,44 @@ public class GoalController(
             return Ok();
         });
     }
+
+    [HttpPost]
+    [Authorize]
+    [Route("[action]")]
+    public async Task<IActionResult> Contribution(
+        [FromBody] GoalContributionCreateRequest contribution
+    )
+    {
+        return await HandleRequestAsync(async () =>
+        {
+            var userId = userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            {
+                return Unauthorized();
+            }
+
+            await goalService.AddContributionAsync(parsedUserId, contribution);
+            return Ok();
+        });
+    }
+
+    [HttpDelete]
+    [Authorize]
+    [Route("[action]")]
+    public async Task<IActionResult> Contribution(Guid contributionId)
+    {
+        return await HandleRequestAsync(async () =>
+        {
+            var userId = userManager.GetUserId(User);
+
+            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            {
+                return Unauthorized();
+            }
+
+            await goalService.DeleteContributionAsync(parsedUserId, contributionId);
+            return Ok();
+        });
+    }
 }

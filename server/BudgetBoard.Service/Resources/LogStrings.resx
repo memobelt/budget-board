@@ -223,6 +223,21 @@
     <data name="GoalNotFoundLog" xml:space="preserve">
         <value>Attempted to access a goal that does not exist.</value>
     </data>
+    <data name="GoalCreateManualInvalidAmountLog" xml:space="preserve">
+        <value>Attempted to create a manual goal without a positive target amount.</value>
+    </data>
+    <data name="GoalCreateManualWithAccountsLog" xml:space="preserve">
+        <value>Attempted to create a manual goal with associated accounts.</value>
+    </data>
+    <data name="GoalContributionNotManualLog" xml:space="preserve">
+        <value>Attempted to add a contribution to a goal that is linked to accounts.</value>
+    </data>
+    <data name="GoalContributionZeroAmountLog" xml:space="preserve">
+        <value>Attempted to add a goal contribution with an amount of zero.</value>
+    </data>
+    <data name="GoalContributionNotFoundLog" xml:space="preserve">
+        <value>Attempted to access a goal contribution that does not exist.</value>
+    </data>
     <data name="GoalPercentCompleteZeroTargetAmountLog" xml:space="preserve">
         <value>Effective target amount is zero, cannot calculate percent complete.</value>
     </data>

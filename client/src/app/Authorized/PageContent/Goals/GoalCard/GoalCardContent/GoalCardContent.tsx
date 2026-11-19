@@ -10,9 +10,8 @@ import {
 } from "@teelur/budget-board-ui";
 import React from "react";
 import { useUserSettings } from "~/providers/UserSettingsProvider/UserSettingsProvider";
-import { sumAccountsTotalBalance } from "~/helpers/accounts";
 import { SignDisplay } from "~/helpers/currency";
-import { getGoalTargetAmount } from "~/helpers/goals";
+import { getGoalCurrentAmount, getGoalTargetAmount } from "~/helpers/goals";
 import { IGoalResponse } from "~/models/goal";
 import { PencilIcon } from "lucide-react";
 import { useSensitiveAmountFormatter } from "~/hooks/useSensitiveAmountFormatter";
@@ -33,6 +32,10 @@ const GoalCardContent = (props: GoalCardContentProps): React.ReactNode => {
   const { preferredCurrency } = useUserSettings();
   const { isPrivacyModeEnabled } = usePrivacyMode();
   const formatAmount = useSensitiveAmountFormatter();
+  // A goal with neither a target date nor a monthly contribution has nothing to project.
+  const isOpenEnded =
+    props.goal.completeDate === null &&
+    !props.goal.isMonthlyContributionEditable;
   const formatSensitiveAmount = (amount: number): string =>
     formatAmount(amount, SignDisplay.Auto, undefined, 0);
 
@@ -54,6 +57,11 @@ const GoalCardContent = (props: GoalCardContentProps): React.ReactNode => {
                 })}
               </Badge>
             )}
+            {props.goal.isManual && (
+              <Badge variant="light" color="secondary" size="xs">
+                {t("manual")}
+              </Badge>
+            )}
             <ActionIcon
               variant="ghost"
               color="primary"
@@ -71,10 +79,7 @@ const GoalCardContent = (props: GoalCardContentProps): React.ReactNode => {
               i18nKey="x_of_y"
               components={[
                 <AmountText
-                  amount={
-                    sumAccountsTotalBalance(props.goal.accounts) -
-                    props.goal.initialAmount
-                  }
+                  amount={getGoalCurrentAmount(props.goal)}
                   disableStatusColor
                   size="lg"
                   isSensitive={isPrivacyModeEnabled}
@@ -117,40 +122,61 @@ const GoalCardContent = (props: GoalCardContentProps): React.ReactNode => {
               {t("projected_colon")}
             </BodyText>
             <BodyText tone="primary" size="sm" key="date-not-edit">
-              {dayjs(props.goal.completeDate).format("MMMM YYYY")}
+              {props.goal.completeDate
+                ? dayjs(props.goal.completeDate).format("MMMM YYYY")
+                : t("no_target_date")}
             </BodyText>
           </Group>
           <Flex justify="flex-end" align="center" gap="0.25rem">
-            <Trans
-              i18nKey="x_of_y_this_month"
-              values={{
-                total: formatSensitiveAmount(props.goal.monthlyContribution),
-              }}
-              components={[
-                <AmountText
-                  amount={props.goal.monthlyContributionProgress}
-                  size="md"
-                  total={props.goal.monthlyContribution}
-                  type={StatusColorType.Target}
-                  isSensitive={isPrivacyModeEnabled}
-                  locale={intlLocale}
-                  currency={preferredCurrency}
-                  decimalPlaces={0}
-                  key="amount"
-                />,
-                <BodyText tone="secondary" size="sm" key="of" />,
-                <AmountText
-                  amount={props.goal.monthlyContribution}
-                  size="md"
-                  disableStatusColor
-                  isSensitive={isPrivacyModeEnabled}
-                  locale={intlLocale}
-                  currency={preferredCurrency}
-                  decimalPlaces={0}
-                  key="total-not-edit"
-                />,
-              ]}
-            />
+            {isOpenEnded ? (
+              <Trans
+                i18nKey="x_this_month"
+                components={[
+                  <AmountText
+                    amount={props.goal.monthlyContributionProgress}
+                    size="md"
+                    disableStatusColor
+                    isSensitive={isPrivacyModeEnabled}
+                    locale={intlLocale}
+                    currency={preferredCurrency}
+                    decimalPlaces={0}
+                    key="amount"
+                  />,
+                  <BodyText tone="secondary" size="sm" key="this_month" />,
+                ]}
+              />
+            ) : (
+              <Trans
+                i18nKey="x_of_y_this_month"
+                values={{
+                  total: formatSensitiveAmount(props.goal.monthlyContribution),
+                }}
+                components={[
+                  <AmountText
+                    amount={props.goal.monthlyContributionProgress}
+                    size="md"
+                    total={props.goal.monthlyContribution}
+                    type={StatusColorType.Target}
+                    isSensitive={isPrivacyModeEnabled}
+                    locale={intlLocale}
+                    currency={preferredCurrency}
+                    decimalPlaces={0}
+                    key="amount"
+                  />,
+                  <BodyText tone="secondary" size="sm" key="of" />,
+                  <AmountText
+                    amount={props.goal.monthlyContribution}
+                    size="md"
+                    disableStatusColor
+                    isSensitive={isPrivacyModeEnabled}
+                    locale={intlLocale}
+                    currency={preferredCurrency}
+                    decimalPlaces={0}
+                    key="total-not-edit"
+                  />,
+                ]}
+              />
+            )}
           </Flex>
         </Flex>
       </Stack>
