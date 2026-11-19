@@ -1,17 +1,21 @@
 import React from "react";
 import { Stack } from "@mantine/core";
-import { MonthToolcards } from "@teelur/budget-board-ui";
+import { Checkbox, MonthToolcards } from "@teelur/budget-board-ui";
+import { useTranslation } from "react-i18next";
 import FlowsChart from "~/components/Charts/FlowsChart/FlowsChart";
 import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
 import { buildTimeToMonthlyTotalsMap } from "~/helpers/transactions";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { withoutTransfers } from "~/helpers/budgets";
+import { useFlowsRollovers } from "~/hooks/useFlowsRollovers";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
 const FlowsTab = (): React.ReactNode => {
   const monthButtons = [3, 6, 12];
+  const { t } = useTranslation();
+  const [showRollovers, setShowRollovers] = React.useState(false);
   const { dayjs, dayjsLocale } = useLocale();
   const { allTransactionCategories } = useTransactionCategories();
   const [selectedMonths, setSelectedMonths] = React.useState<Date[]>([
@@ -31,6 +35,12 @@ const FlowsTab = (): React.ReactNode => {
       withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
     [transactionsQuery.data, allTransactionCategories],
   );
+
+  const { rollovers, isPending: rolloversPending } = useFlowsRollovers({
+    enabled: showRollovers,
+    months: selectedMonths,
+    categories: allTransactionCategories,
+  });
 
   const timeToMonthlyTotalsMap = React.useMemo(
     () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
@@ -56,10 +66,18 @@ const FlowsTab = (): React.ReactNode => {
         size="compact-sm"
         showClearButton
       />
+      <Checkbox
+        checked={showRollovers}
+        onChange={(event) => setShowRollovers(event.currentTarget.checked)}
+        label={t("show_rollovers")}
+        description={t("show_rollovers_description")}
+        size="xs"
+      />
       <FlowsChart
         transactions={transactions}
         categories={allTransactionCategories}
-        isPending={transactionsQuery.isPending}
+        rollovers={rollovers}
+        isPending={transactionsQuery.isPending || rolloversPending}
       />
     </Stack>
   );

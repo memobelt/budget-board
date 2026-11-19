@@ -7,6 +7,7 @@ import FlowsChart from "~/components/Charts/FlowsChart/FlowsChart";
 import { parseFlowsConfiguration } from "~/helpers/widgets";
 import { withoutTransfers } from "~/helpers/budgets";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
+import { useFlowsRollovers } from "~/hooks/useFlowsRollovers";
 import { IWidgetSettingsResponse } from "~/models/widgetSettings";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
@@ -68,7 +69,14 @@ const FlowsWidget = ({
     [transactionsQuery.data, allTransactionCategories],
   );
 
-  const isPending = transactionsQuery.isPending || categoriesPending;
+  const { rollovers, isPending: rolloversPending } = useFlowsRollovers({
+    enabled: configuration.showRollovers,
+    months: selectedMonths,
+    categories: allTransactionCategories,
+  });
+
+  const isPending =
+    transactionsQuery.isPending || categoriesPending || rolloversPending;
 
   return (
     <>
@@ -89,6 +97,7 @@ const FlowsWidget = ({
             <FlowsChart
               transactions={transactions}
               categories={allTransactionCategories}
+              rollovers={rollovers}
               height={480}
             />
           )}

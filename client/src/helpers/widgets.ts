@@ -186,6 +186,8 @@ export const parseFlowsConfiguration = (
 
   return {
     monthCount: Math.min(12, Math.max(1, Math.round(monthCount || 1))),
+    showRollovers:
+      parsed?.showRollovers === true || parsed?.ShowRollovers === true,
   };
 };
 

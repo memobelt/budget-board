@@ -221,8 +221,16 @@ export interface FlowsChartData {
   totalSpending: number;
 }
 
+/** A budget's rollover balance carried into the charted period. */
+export interface FlowsRolloverItem {
+  name: string;
+  /** Positive for unspent money carried in, negative for a deficit. */
+  amount: number;
+}
+
 interface FlowsChartLabels {
   cashAvailable: string;
+  rollover: string;
   surplus: string;
   deficit: string;
   total: string;
@@ -239,6 +247,7 @@ export const buildFlowsChartData = (
   transactions: ITransaction[],
   categories: ICategory[],
   labels: FlowsChartLabels,
+  rollovers: FlowsRolloverItem[] = [],
 ): FlowsChartData => {
   const nodeNames: string[] = [];
   const nodeIndexes = new Map<string, number>();
@@ -570,6 +579,46 @@ export const buildFlowsChartData = (
         transactionCount,
         "expense",
       );
+    }
+  });
+
+  // Rollover balances carried into the period: unspent money joins the income
+  // side as an extra source, and a carried-in deficit is an extra outflow.
+  const rolloverBranch = labels.rollover;
+  const rolloverDeficitBranch = `${labels.rollover} (${labels.deficit})`;
+  rollovers.forEach(({ name, amount }) => {
+    if (amount === 0) {
+      return;
+    }
+
+    const leafName = `${name} (${labels.rollover})`;
+    markNode(labels.cashAvailable, 2);
+
+    if (amount > 0) {
+      incomeTotal += amount;
+      markNode(rolloverBranch, 1, undefined, { flowType: "income" });
+      markNode(leafName, 0, rolloverBranch, {
+        flowType: "income",
+        parentName: rolloverBranch,
+      });
+      addLink(leafName, rolloverBranch, amount, 0, "income");
+      addLink(rolloverBranch, labels.cashAvailable, amount, 0, "income");
+    } else {
+      const deficit = Math.abs(amount);
+      expenseTotal += deficit;
+      markNode(rolloverDeficitBranch, 3, undefined, { flowType: "expense" });
+      markNode(leafName, 4, rolloverDeficitBranch, {
+        flowType: "expense",
+        parentName: rolloverDeficitBranch,
+      });
+      addLink(
+        labels.cashAvailable,
+        rolloverDeficitBranch,
+        deficit,
+        0,
+        "expense",
+      );
+      addLink(rolloverDeficitBranch, leafName, deficit, 0, "expense");
     }
   });
 

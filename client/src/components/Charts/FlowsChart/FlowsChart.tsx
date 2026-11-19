@@ -3,7 +3,11 @@ import { BodyText } from "@teelur/budget-board-ui";
 import { SankeyChart as MantineSankeyChart } from "@mantine/charts";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { buildFlowsChartData, chartColors } from "~/helpers/charts";
+import {
+  buildFlowsChartData,
+  chartColors,
+  FlowsRolloverItem,
+} from "~/helpers/charts";
 import { useSensitiveAmountFormatter } from "~/hooks/useSensitiveAmountFormatter";
 import { SignDisplay } from "~/helpers/currency";
 import { ICategory } from "~/models/category";
@@ -14,6 +18,8 @@ import FlowsChartTooltip from "./FlowsChartTooltip/FlowsChartTooltip";
 interface FlowsChartProps {
   transactions: ITransaction[];
   categories: ICategory[];
+  /** Rollover balances carried into the period, shown when given. */
+  rollovers?: FlowsRolloverItem[];
   isPending?: boolean;
   height?: number;
 }
@@ -27,16 +33,22 @@ const FlowsChart = (props: FlowsChartProps): React.ReactNode => {
 
   const chartData = React.useMemo(
     () =>
-      buildFlowsChartData(props.transactions, props.categories, {
-        cashAvailable: t("cash_available"),
-        surplus: t("surplus"),
-        deficit: t("deficit"),
-        total: t("total"),
-        income: t("income"),
-        expense: t("expense"),
-        uncategorized: t("uncategorized"),
-      }),
-    [props.transactions, props.categories, t],
+      buildFlowsChartData(
+        props.transactions,
+        props.categories,
+        {
+          cashAvailable: t("cash_available"),
+          rollover: t("flows_rollover"),
+          surplus: t("surplus"),
+          deficit: t("deficit"),
+          total: t("total"),
+          income: t("income"),
+          expense: t("expense"),
+          uncategorized: t("uncategorized"),
+        },
+        props.rollovers,
+      ),
+    [props.transactions, props.categories, props.rollovers, t],
   );
 
   const valueFormatter = React.useCallback(

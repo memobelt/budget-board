@@ -1,5 +1,5 @@
 import { Group, Stack } from "@mantine/core";
-import { Button, Modal, Select } from "@teelur/budget-board-ui";
+import { Button, Checkbox, Modal, Select } from "@teelur/budget-board-ui";
 import { useField } from "@mantine/form";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ const FlowsWidgetSettings = ({
   const { t } = useTranslation();
   const updateWidgetSettingsMutation = useUpdateWidgetSettingsMutation();
   const monthCountField = useField({ initialValue: "1" });
+  const showRolloversField = useField({ initialValue: false });
   const [initialized, setInitialized] = React.useState(false);
 
   const monthOptions = Array.from({ length: 12 }, (_, index) => {
@@ -34,6 +35,7 @@ const FlowsWidgetSettings = ({
   const handleClose = () => {
     setInitialized(false);
     monthCountField.reset();
+    showRolloversField.reset();
     onClose();
   };
 
@@ -42,11 +44,17 @@ const FlowsWidgetSettings = ({
       return;
     }
 
-    monthCountField.setValue(
-      parseFlowsConfiguration(widget.configuration).monthCount.toString(),
-    );
+    const configuration = parseFlowsConfiguration(widget.configuration);
+    monthCountField.setValue(configuration.monthCount.toString());
+    showRolloversField.setValue(configuration.showRollovers);
     setInitialized(true);
-  }, [opened, initialized, monthCountField, widget.configuration]);
+  }, [
+    opened,
+    initialized,
+    monthCountField,
+    showRolloversField,
+    widget.configuration,
+  ]);
 
   return (
     <Modal
@@ -61,6 +69,15 @@ const FlowsWidgetSettings = ({
           label={t("flows_widget_month_count_label")}
           description={t("flows_widget_settings_message")}
           {...monthCountField.getInputProps()}
+        />
+        <Checkbox
+          checked={showRolloversField.getValue()}
+          onChange={(event) =>
+            showRolloversField.setValue(event.currentTarget.checked)
+          }
+          label={t("show_rollovers")}
+          description={t("show_rollovers_description")}
+          size="xs"
         />
         <Group gap="0.5rem">
           <Button
@@ -83,6 +100,7 @@ const FlowsWidgetSettings = ({
                   id: widget.id,
                   configuration: {
                     monthCount: Number(monthCountField.getValue()),
+                    showRollovers: showRolloversField.getValue(),
                   },
                 },
               ]);
