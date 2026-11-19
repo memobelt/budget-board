@@ -1,10 +1,11 @@
 import { Group, List, Stack } from "@mantine/core";
 import { Alert, BodyText, Button } from "@teelur/budget-board-ui";
-import { CloudAlertIcon } from "lucide-react";
+import { CloudAlertIcon, ExternalLinkIcon } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router";
 import { useApplicationUserQuery } from "~/hooks/queries/useApplicationUserQuery";
+
+const SIMPLEFIN_BRIDGE_URL = "https://beta-bridge.simplefin.org/";
 
 const DISMISSED_STORAGE_KEY = "simpleFinConnectionAlertDismissed";
 
@@ -31,8 +32,6 @@ const writeDismissedKey = (key: string): void => {
  */
 const SimpleFinConnectionAlert = (): React.ReactNode => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const location = useLocation();
   const applicationUserQuery = useApplicationUserQuery();
 
   const user = applicationUserQuery.data;
@@ -55,9 +54,6 @@ const SimpleFinConnectionAlert = (): React.ReactNode => {
     writeDismissedKey(alertKey);
     setDismissedKey(alertKey);
   };
-
-  const isOnExternalAccounts =
-    location.pathname.startsWith("/external-accounts");
 
   return (
     <Alert
@@ -83,18 +79,19 @@ const SimpleFinConnectionAlert = (): React.ReactNode => {
         <BodyText size="sm" tone="secondary">
           {t("simplefin_connection_error_hint")}
         </BodyText>
-        {!isOnExternalAccounts && (
-          <Group>
-            <Button
-              variant="filled"
-              color="error"
-              size="compact-sm"
-              onClick={() => navigate("/external-accounts")}
-            >
-              {t("simplefin_connection_error_action")}
-            </Button>
-          </Group>
-        )}
+        <Group>
+          <Button
+            variant="filled"
+            color="error"
+            size="compact-sm"
+            rightSection={<ExternalLinkIcon size={14} />}
+            onClick={() =>
+              window.open(SIMPLEFIN_BRIDGE_URL, "_blank", "noopener,noreferrer")
+            }
+          >
+            {t("simplefin_connection_error_action")}
+          </Button>
+        </Group>
       </Stack>
     </Alert>
   );
