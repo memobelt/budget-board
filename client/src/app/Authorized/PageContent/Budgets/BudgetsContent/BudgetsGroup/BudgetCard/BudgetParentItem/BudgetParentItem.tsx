@@ -8,8 +8,8 @@ import {
   Button,
   HeadingText,
   Popover,
-  Progress,
 } from "@teelur/budget-board-ui";
+import BudgetProgress from "../BudgetProgress/BudgetProgress";
 import { ChevronDown, PencilIcon, TrashIcon } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import CategoryIconPicker from "~/components/CategoryIconPicker/CategoryIconPicker";
@@ -283,7 +283,7 @@ const BudgetParentItem = (props: BudgetParentItemProps): React.ReactNode => {
             />
           </Group>
         </Group>
-        <Progress
+        <BudgetProgress
           amount={amount}
           limit={availableLimit}
           label

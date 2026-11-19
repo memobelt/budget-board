@@ -153,6 +153,7 @@ const resolver: CSSVariablesResolver = () => ({
 
     "--bbui-color-primary": budgetBoardColors.light.primary,
     "--bbui-color-warning": budgetBoardColors.light.warning,
+    "--bbui-color-error": budgetBoardColors.light.error,
     "--bbui-color-button-hover": budgetBoardColors.light.buttonHoverBorder,
 
     "--bbui-color-selection": budgetBoardColors.light.selection,
@@ -172,6 +173,7 @@ const resolver: CSSVariablesResolver = () => ({
 
     "--bbui-color-primary": budgetBoardColors.dark.primary,
     "--bbui-color-warning": budgetBoardColors.dark.warning,
+    "--bbui-color-error": budgetBoardColors.dark.error,
     "--bbui-color-button-hover": budgetBoardColors.dark.buttonHoverBorder,
 
     "--bbui-color-selection": budgetBoardColors.dark.selection,

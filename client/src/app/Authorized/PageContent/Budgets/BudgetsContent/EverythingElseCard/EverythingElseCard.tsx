@@ -7,8 +7,8 @@ import {
   BodyText,
   Card,
   HeadingText,
-  Progress,
 } from "@teelur/budget-board-ui";
+import BudgetProgress from "../BudgetsGroup/BudgetCard/BudgetProgress/BudgetProgress";
 import { useDisclosure } from "@mantine/hooks";
 import { PencilIcon } from "lucide-react";
 import React from "react";
@@ -246,7 +246,7 @@ const EverythingElseCard = (
             </BodyText>
             {hasLimit && (
               <>
-                <Progress
+                <BudgetProgress
                   amount={props.amount}
                   limit={availableLimit}
                   label
