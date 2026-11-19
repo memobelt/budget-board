@@ -1,10 +1,14 @@
 import React from "react";
-import { Stack } from "@mantine/core";
+import { Group, Stack } from "@mantine/core";
 import { Checkbox, MonthToolcards } from "@teelur/budget-board-ui";
 import { useTranslation } from "react-i18next";
 import FlowsChart from "~/components/Charts/FlowsChart/FlowsChart";
-import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
-import { buildTimeToMonthlyTotalsMap } from "~/helpers/transactions";
+import QuickMonthSelect from "~/components/QuickMonthSelect/QuickMonthSelect";
+import { useSelectMultipleMonths } from "~/hooks/useSelectMultipleMonths";
+import {
+  buildTimeToMonthlyTotalsMap,
+  getMonthsWithTransactions,
+} from "~/helpers/transactions";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { withoutTransfers } from "~/helpers/budgets";
@@ -13,7 +17,6 @@ import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
 const FlowsTab = (): React.ReactNode => {
-  const monthButtons = [3, 6, 12];
   const { t } = useTranslation();
   const [showRollovers, setShowRollovers] = React.useState(false);
   const { dayjs, dayjsLocale } = useLocale();
@@ -23,10 +26,14 @@ const FlowsTab = (): React.ReactNode => {
   ]);
 
   const transactionsQuery = useTransactionsQuery({
-    selectedDates: selectedMonths.map((month) => ({
-      month: dayjs(month).month() + 1,
-      year: dayjs(month).year(),
-    })),
+    // No months selected means all of them ("All" in the quick select).
+    selectedDates:
+      selectedMonths.length === 0
+        ? undefined
+        : selectedMonths.map((month) => ({
+            month: dayjs(month).month() + 1,
+            year: dayjs(month).year(),
+          })),
   });
 
   // Transfers only move money between accounts, so they're left out of trends.
@@ -36,9 +43,20 @@ const FlowsTab = (): React.ReactNode => {
     [transactionsQuery.data, allTransactionCategories],
   );
 
+  // With no months selected ("All"), chart every month that has transactions.
+  const chartMonths = React.useMemo(
+    () =>
+      selectedMonths.length > 0
+        ? selectedMonths
+        : getMonthsWithTransactions(transactions),
+    [selectedMonths, transactions],
+  );
+  const { isSelectMultiple, toggleSelectMultiple, enableSelectMultiple } =
+    useSelectMultipleMonths(selectedMonths, setSelectedMonths, true);
+
   const { rollovers, isPending: rolloversPending } = useFlowsRollovers({
     enabled: showRollovers,
-    months: selectedMonths,
+    months: chartMonths,
     categories: allTransactionCategories,
   });
 
@@ -56,16 +74,18 @@ const FlowsTab = (): React.ReactNode => {
           getMonthToolcardStatus(timeToMonthlyTotalsMap, date)
         }
         isPending={transactionsQuery.isPending}
-        allowSelectMultiple
+        allowSelectMultiple={isSelectMultiple}
         locale={dayjsLocale}
       />
-      <SelectLastNMonths
-        monthButtons={monthButtons}
-        selectedMonths={selectedMonths}
-        setSelectedMonths={setSelectedMonths}
-        size="compact-sm"
-        showClearButton
-      />
+      <Group justify="end">
+        <QuickMonthSelect
+          selectedMonths={selectedMonths}
+          setSelectedMonths={setSelectedMonths}
+          isSelectMultiple={isSelectMultiple}
+          toggleSelectMultiple={toggleSelectMultiple}
+          onSelectRange={enableSelectMultiple}
+        />
+      </Group>
       <Checkbox
         checked={showRollovers}
         onChange={(event) => setShowRollovers(event.currentTarget.checked)}

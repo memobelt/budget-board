@@ -1,18 +1,20 @@
 import React from "react";
 import { MonthToolcards } from "@teelur/budget-board-ui";
 import { getMonthToolcardStatus } from "~/helpers/monthToolcards";
-import { buildTimeToMonthlyTotalsMap } from "~/helpers/transactions";
+import {
+  buildTimeToMonthlyTotalsMap,
+  getMonthsWithTransactions,
+} from "~/helpers/transactions";
 import NetCashFlowChart from "~/components/Charts/NetCashFlowChart/NetCashFlowChart";
-import { Stack } from "@mantine/core";
+import { Group, Stack } from "@mantine/core";
 import { useLocale } from "~/providers/LocaleProvider/LocaleProvider";
-import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
+import QuickMonthSelect from "~/components/QuickMonthSelect/QuickMonthSelect";
+import { useSelectMultipleMonths } from "~/hooks/useSelectMultipleMonths";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { withoutTransfers } from "~/helpers/budgets";
 import { useTransactionCategories } from "~/providers/TransactionCategoryProvider/TransactionCategoryProvider";
 
 const NetCashFlowTab = (): React.ReactNode => {
-  const monthButtons = [3, 6, 12];
-
   const { dayjs, dayjsLocale } = useLocale();
 
   const [selectedMonths, setSelectedMonths] = React.useState<Date[]>([
@@ -21,10 +23,14 @@ const NetCashFlowTab = (): React.ReactNode => {
   ]);
 
   const transactionsQuery = useTransactionsQuery({
-    selectedDates: selectedMonths.map((month) => ({
-      month: dayjs(month).month() + 1,
-      year: dayjs(month).year(),
-    })),
+    // No months selected means all of them ("All" in the quick select).
+    selectedDates:
+      selectedMonths.length === 0
+        ? undefined
+        : selectedMonths.map((month) => ({
+            month: dayjs(month).month() + 1,
+            year: dayjs(month).year(),
+          })),
   });
   const { allTransactionCategories } = useTransactionCategories();
 
@@ -34,6 +40,17 @@ const NetCashFlowTab = (): React.ReactNode => {
       withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
     [transactionsQuery.data, allTransactionCategories],
   );
+
+  // With no months selected ("All"), chart every month that has transactions.
+  const chartMonths = React.useMemo(
+    () =>
+      selectedMonths.length > 0
+        ? selectedMonths
+        : getMonthsWithTransactions(transactions),
+    [selectedMonths, transactions],
+  );
+  const { isSelectMultiple, toggleSelectMultiple, enableSelectMultiple } =
+    useSelectMultipleMonths(selectedMonths, setSelectedMonths, true);
 
   const timeToMonthlyTotalsMap = React.useMemo(
     () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
@@ -49,19 +66,21 @@ const NetCashFlowTab = (): React.ReactNode => {
           getMonthToolcardStatus(timeToMonthlyTotalsMap, date)
         }
         isPending={transactionsQuery.isPending}
-        allowSelectMultiple
+        allowSelectMultiple={isSelectMultiple}
         locale={dayjsLocale}
       />
-      <SelectLastNMonths
-        monthButtons={monthButtons}
-        selectedMonths={selectedMonths}
-        setSelectedMonths={setSelectedMonths}
-        size="compact-sm"
-        showClearButton
-      />
+      <Group justify="end">
+        <QuickMonthSelect
+          selectedMonths={selectedMonths}
+          setSelectedMonths={setSelectedMonths}
+          isSelectMultiple={isSelectMultiple}
+          toggleSelectMultiple={toggleSelectMultiple}
+          onSelectRange={enableSelectMultiple}
+        />
+      </Group>
       <NetCashFlowChart
         transactions={transactions}
-        months={selectedMonths}
+        months={chartMonths}
         isPending={transactionsQuery.isPending}
       />
     </Stack>

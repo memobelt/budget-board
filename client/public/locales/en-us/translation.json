@@ -544,6 +544,7 @@
   "purchase_price": "Purchase Price",
   "purchased_on_for": "Purchased on {{date}} for {{price}}.",
   "purchased_on_for_styled": "<0>Purchased on</0> <1>{{date}}</1> <0>for</0> <1>{{price}}</1>",
+  "quick_select": "Quick select",
   "recent_balances": "Recent Balances",
   "recent_transactions": "Recent Transactions",
   "recovery_codes": "Recovery Codes",
@@ -762,6 +763,7 @@
   "widget_no_items_configured_message": "No items are configured for this widget.",
   "x_of_y": "<0/> <1>of</1> <2/>",
   "x_of_y_this_month": "<0/> <1>of</1> <2/> <1>this month</1>",
+  "year_to_date": "Year to Date",
   "yearly": "Yearly",
   "yyyy_mm_dd": "YYYY{{separator}}MM{{separator}}DD"
 }

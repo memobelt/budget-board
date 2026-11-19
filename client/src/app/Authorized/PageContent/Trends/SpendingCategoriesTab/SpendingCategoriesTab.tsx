@@ -10,7 +10,8 @@ import { useTransactionCategories } from "~/providers/TransactionCategoryProvide
 import { CategoryTypes } from "~/models/category";
 import { useTransactionsQuery } from "~/hooks/queries/useTransactionsQuery";
 import { withoutTransfers } from "~/helpers/budgets";
-import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
+import QuickMonthSelect from "~/components/QuickMonthSelect/QuickMonthSelect";
+import { useSelectMultipleMonths } from "~/hooks/useSelectMultipleMonths";
 
 const SpendingCategoriesTab = (): React.ReactNode => {
   const { t } = useTranslation();
@@ -22,10 +23,14 @@ const SpendingCategoriesTab = (): React.ReactNode => {
   ]);
 
   const transactionsQuery = useTransactionsQuery({
-    selectedDates: selectedMonths.map((month) => ({
-      month: dayjs(month).month() + 1,
-      year: dayjs(month).year(),
-    })),
+    // No months selected means all of them ("All" in the quick select).
+    selectedDates:
+      selectedMonths.length === 0
+        ? undefined
+        : selectedMonths.map((month) => ({
+            month: dayjs(month).month() + 1,
+            year: dayjs(month).year(),
+          })),
   });
 
   // Transfers only move money between accounts, so they're left out of trends.
@@ -34,6 +39,9 @@ const SpendingCategoriesTab = (): React.ReactNode => {
       withoutTransfers(transactionsQuery.data ?? [], allTransactionCategories),
     [transactionsQuery.data, allTransactionCategories],
   );
+
+  const { isSelectMultiple, toggleSelectMultiple, enableSelectMultiple } =
+    useSelectMultipleMonths(selectedMonths, setSelectedMonths, true);
 
   const timeToMonthlyTotalsMap = React.useMemo(
     () => buildTimeToMonthlyTotalsMap(selectedMonths, transactions),
@@ -77,7 +85,7 @@ const SpendingCategoriesTab = (): React.ReactNode => {
           getMonthToolcardStatus(timeToMonthlyTotalsMap, date)
         }
         isPending={transactionsQuery.isPending}
-        allowSelectMultiple
+        allowSelectMultiple={isSelectMultiple}
         locale={dayjsLocale}
       />
       <Group w="100%" justify="space-between">
@@ -92,12 +100,12 @@ const SpendingCategoriesTab = (): React.ReactNode => {
             ? t("show_subcategories")
             : t("hide_subcategories")}
         </Button>
-        <SelectLastNMonths
-          monthButtons={[3, 6, 12]}
+        <QuickMonthSelect
           selectedMonths={selectedMonths}
           setSelectedMonths={setSelectedMonths}
-          size="compact-sm"
-          showClearButton
+          isSelectMultiple={isSelectMultiple}
+          toggleSelectMultiple={toggleSelectMultiple}
+          onSelectRange={enableSelectMultiple}
         />
       </Group>
       <Flex justify="center">

@@ -8,7 +8,7 @@ import {
   MonthToolcards,
 } from "@teelur/budget-board-ui";
 import { useDisclosure } from "@mantine/hooks";
-import { FilterIcon, ListChecksIcon } from "lucide-react";
+import { FilterIcon } from "lucide-react";
 import React from "react";
 import SortMenu from "./SortMenu/SortMenu";
 import { SortDirection } from "~/components/SortButton";
@@ -19,7 +19,7 @@ import ImportTransactionsModal from "./ImportTransactionsModal/ImportTransaction
 import { useTransactionFilters } from "~/providers/TransactionFiltersProvider/TransactionFiltersProvider";
 import { useTranslation } from "react-i18next";
 import ExportTransactionsModal from "./ExportTransactionsModal/ExportTransactionsModal";
-import SelectLastNMonths from "~/components/SelectLastNMonths/SelectLastNMonths";
+import QuickMonthSelect from "~/components/QuickMonthSelect/QuickMonthSelect";
 import { Filters, ITransaction } from "~/models/transaction";
 import {
   buildTimeToMonthlyTotalsMap,
@@ -105,9 +105,11 @@ const TransactionsHeader = (
       if (
         transaction.deleted !== null ||
         isTransfer(transaction, allTransactionCategories) ||
-        !props.selectedMonths.some((month) =>
-          dayjs(transaction.date).isSame(month, "month"),
-        )
+        // No months selected means all of them.
+        (props.selectedMonths.length > 0 &&
+          !props.selectedMonths.some((month) =>
+            dayjs(transaction.date).isSame(month, "month"),
+          ))
       ) {
         return;
       }
@@ -258,25 +260,13 @@ const TransactionsHeader = (
           sortDirection={props.sortDirection}
           setSortDirection={props.setSortDirection}
         />
-        <Group gap="0.5rem">
-          <Button
-            variant="filled"
-            color="primary"
-            size="compact-sm"
-            selected={canSelectMultiple}
-            rightSection={<ListChecksIcon size="1rem" />}
-            onClick={toggleSelectMultiple}
-          >
-            {t("select_multiple")}
-          </Button>
-          <SelectLastNMonths
-            monthButtons={[3, 6, 12]}
-            selectedMonths={props.selectedMonths}
-            setSelectedMonths={props.setSelectedMonths}
-            onSelectMonths={open}
-            size="compact-sm"
-          />
-        </Group>
+        <QuickMonthSelect
+          selectedMonths={props.selectedMonths}
+          setSelectedMonths={props.setSelectedMonths}
+          isSelectMultiple={canSelectMultiple}
+          toggleSelectMultiple={toggleSelectMultiple}
+          onSelectRange={open}
+        />
       </Group>
     </Stack>
   );
