@@ -383,10 +383,15 @@ public class LunchFlowService(
                     || DateOnly.Parse(t.Date) >= lunchFlowAccount.SyncStartDate.Value
                 );
 
+                var receivedCount = lunchFlowTransactionsData.Transactions.Count();
+                var createdCount = 0;
+                var existingCount = 0;
+
                 foreach (var transaction in transactionsToSync)
                 {
                     if (userTransactions.Any(t => t.SyncID != null && t.SyncID == transaction.ID))
                     {
+                        existingCount++;
                         continue;
                     }
 
@@ -402,7 +407,32 @@ public class LunchFlowService(
                             Source = TransactionSource.LunchFlow,
                         }
                     );
+                    createdCount++;
+
+                    logger.LogTransactionSync(
+                        logLocalizer[
+                            "LunchFlowTransactionSyncedLog",
+                            transaction.ID,
+                            userAccount.Name,
+                            transaction.Amount,
+                            transaction.Date,
+                            transaction.IsPending?.ToString() ?? "unknown",
+                            transaction.Merchant ?? string.Empty,
+                            transaction.Description ?? string.Empty
+                        ]
+                    );
                 }
+
+                logger.LogTransactionSync(
+                    logLocalizer[
+                        "LunchFlowTransactionSyncSummaryLog",
+                        userAccount.Name,
+                        receivedCount,
+                        createdCount,
+                        existingCount,
+                        receivedCount - createdCount - existingCount
+                    ]
+                );
             }
             catch (Exception ex)
             {
