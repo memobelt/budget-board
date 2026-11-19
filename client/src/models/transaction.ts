@@ -5,6 +5,8 @@ export interface ITransactionImport {
   amount: number | null;
   account: string | null;
   notes: string | null;
+  /** Tags for the transaction, from a column listing them separated by commas, semicolons or |. */
+  tags: string[] | null;
 }
 
 export interface ITransactionImportTableData extends ITransactionImport {

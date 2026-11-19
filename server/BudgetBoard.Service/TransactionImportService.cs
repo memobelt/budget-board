@@ -40,6 +40,7 @@ public class TransactionImportService(
                 Amount = transaction.Amount,
                 Notes = transaction.Notes,
                 Account = transaction.Account,
+                Tags = transaction.Tags,
             })
             .ToList();
         var accountNameToIdMap = request.AccountNameToIDMap.ToList();

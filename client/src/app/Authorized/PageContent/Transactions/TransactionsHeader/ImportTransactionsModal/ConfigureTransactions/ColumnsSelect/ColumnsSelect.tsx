@@ -11,6 +11,7 @@ export interface ISelectedColumns {
   amount: string | null;
   account: string | null;
   notes: string | null;
+  tags: string | null;
   incomeAmount: string | null;
   expenseAmount: string | null;
 }
@@ -42,6 +43,9 @@ const ColumnsSelect = (props: ColumnsSelectProps): React.ReactNode => {
   const notesColumnField = useField<string | null>({
     initialValue: props.selectedColumns.notes,
   });
+  const tagsColumnField = useField<string | null>({
+    initialValue: props.selectedColumns.tags,
+  });
   const incomeAmountColumnField = useField<string | null>({
     initialValue: props.selectedColumns.incomeAmount,
   });
@@ -68,6 +72,7 @@ const ColumnsSelect = (props: ColumnsSelectProps): React.ReactNode => {
       amount: amountColumnField.getValue(),
       account: accountColumnField.getValue(),
       notes: notesColumnField.getValue(),
+      tags: tagsColumnField.getValue(),
       incomeAmount: incomeAmountColumnField.getValue(),
       expenseAmount: expenseAmountColumnField.getValue(),
     });
@@ -78,6 +83,7 @@ const ColumnsSelect = (props: ColumnsSelectProps): React.ReactNode => {
     amountColumnField.getValue(),
     accountColumnField.getValue(),
     notesColumnField.getValue(),
+    tagsColumnField.getValue(),
     incomeAmountColumnField.getValue(),
     expenseAmountColumnField.getValue(),
   ]);
@@ -154,6 +160,13 @@ const ColumnsSelect = (props: ColumnsSelectProps): React.ReactNode => {
             data={props.csvHeaders}
             clearable
             {...notesColumnField.getInputProps()}
+          />
+          <Select
+            label={t("tags")}
+            description={t("import_tags_column_description")}
+            data={props.csvHeaders}
+            clearable
+            {...tagsColumnField.getInputProps()}
           />
         </SimpleGrid>
       </Stack>
